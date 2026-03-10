@@ -1,0 +1,9 @@
+service_account.json
+.env
+config_secrets.env
+token.json
+downloads/
+logs/
+__pycache__/
+*.pyc
+.venv/
