@@ -119,6 +119,14 @@ def update_transaction(txn_id: str, body: TransactionUpdate):
     return _txn_to_out(txn_id, txn)
 
 
+@router.delete("/transactions/{txn_id}", status_code=204)
+def delete_transaction(txn_id: str):
+    """Remove a transaction from the store (e.g. personal transactions to exclude)."""
+    if txn_id not in store.transactions:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    del store.transactions[txn_id]
+
+
 @router.post("/transactions/bulk-update", response_model=List[TransactionOut])
 def bulk_update_transactions(body: BulkUpdateRequest):
     """Update property/category for multiple transactions at once."""

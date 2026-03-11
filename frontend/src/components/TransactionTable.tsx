@@ -12,6 +12,7 @@ interface Props {
   properties: string[]
   editedIds: Set<string>
   onUpdate: (id: string, field: 'property' | 'category', value: string) => void
+  onDelete: (id: string) => void
   saving: Set<string>
 }
 
@@ -21,6 +22,7 @@ export default function TransactionTable({
   properties,
   editedIds,
   onUpdate,
+  onDelete,
   saving,
 }: Props) {
   const [sortField, setSortField] = useState<SortField>('date')
@@ -135,21 +137,31 @@ export default function TransactionTable({
                 />
               </td>
               <td className="px-3 py-2 whitespace-nowrap">
-                {saving.has(txn.id) ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-blue-600">
-                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                    Saving
-                  </span>
-                ) : editedIds.has(txn.id) ? (
-                  <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 font-medium">Edited</span>
-                ) : txn.needs_review ? (
-                  <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700 font-medium">Review</span>
-                ) : (
-                  <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 font-medium">Auto</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {saving.has(txn.id) ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-blue-600">
+                      <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      Saving
+                    </span>
+                  ) : editedIds.has(txn.id) ? (
+                    <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 font-medium">Edited</span>
+                  ) : txn.needs_review ? (
+                    <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700 font-medium">Review</span>
+                  ) : (
+                    <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 font-medium">Auto</span>
+                  )}
+                  <button
+                    onClick={() => onDelete(txn.id)}
+                    disabled={saving.has(txn.id)}
+                    className="text-gray-300 hover:text-red-500 disabled:opacity-30 transition-colors text-xs leading-none"
+                    title="Remove from review (personal/irrelevant transaction)"
+                  >
+                    ✕
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

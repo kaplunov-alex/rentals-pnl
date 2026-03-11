@@ -25,6 +25,8 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }),
+  deleteTransaction: (id: string) =>
+    req<void>(`/transactions/${id}`, { method: 'DELETE' }),
   bulkUpdate: (updates: import('../types').BulkUpdateItem[]) =>
     req<import('../types').Transaction[]>('/transactions/bulk-update', {
       method: 'POST',

@@ -134,6 +134,9 @@ vendor_mappings:
   TEST VENDOR:
     property: 30 Bishop Oak
     category: Other Expenses
+  B D AUTOMOTIVE:
+    property: 30 Bishop Oak
+    category: Travel/Mileage
 split_rules:
   BILL PAY Juan Santiago:
   - amount: -340.0

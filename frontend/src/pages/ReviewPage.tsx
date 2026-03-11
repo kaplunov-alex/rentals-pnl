@@ -77,6 +77,16 @@ export default function ReviewPage() {
     }
   }
 
+  const handleDelete = async (id: string) => {
+    try {
+      await api.deleteTransaction(id)
+      setTransactions(prev => prev.filter(t => t.id !== id))
+      setEditedIds(prev => { const s = new Set(prev); s.delete(id); return s })
+    } catch (e) {
+      addToast(`Delete failed: ${(e as Error).message}`, 'error')
+    }
+  }
+
   const handleRunPipeline = async () => {
     setPipelineLoading(true)
     try {
@@ -121,6 +131,7 @@ export default function ReviewPage() {
             properties={properties}
             editedIds={editedIds}
             onUpdate={handleUpdate}
+            onDelete={handleDelete}
             saving={savingIds}
           />
         </>

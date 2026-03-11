@@ -5,6 +5,7 @@ Wells Fargo format: Date, Amount, *, *, Description (no header row)
 Chase format:      Transaction Date, Post Date, Description, Category, Type, Amount (with header)
 """
 
+import html
 import logging
 from datetime import date
 from pathlib import Path
@@ -71,7 +72,7 @@ def parse_chase(filepath: str | Path) -> List[Transaction]:
                     continue
                 txn_date = _parse_date(str(row["transaction_date"]).strip())
                 amount = float(str(row["amount"]).replace(",", "").strip())
-                description = str(row["description"]).strip()
+                description = html.unescape(str(row["description"]).strip())
                 transactions.append(
                     Transaction(
                         date=txn_date,
