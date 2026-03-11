@@ -131,6 +131,9 @@ vendor_mappings:
   BOUDREAU PLUMBIN SALE:
     property: 30 Bishop Oak
     category: Repairs & Maintenance
+  TEST VENDOR:
+    property: 30 Bishop Oak
+    category: Other Expenses
 split_rules:
   BILL PAY Juan Santiago:
   - amount: -340.0
