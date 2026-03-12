@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl.exe -s http://localhost:8000/api/config/properties)",
+      "Bash(curl.exe -s http://localhost:8000/api/config/categories)",
+      "Bash(cmd.exe /c \"docker --version\")"
+    ]
+  }
+}
