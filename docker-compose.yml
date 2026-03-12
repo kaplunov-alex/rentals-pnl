@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      # Secrets — mounted read-only, not baked into image
+      - ./service_account.json:/secrets/service_account.json:ro
+      # config.yaml is writable so vendor mappings saved via UI persist on host
+      - ./config.yaml:/app/config.yaml
+    environment:
+      - SERVICE_ACCOUNT_PATH=/secrets/service_account.json
+    env_file:
+      - .env

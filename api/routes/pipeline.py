@@ -1,5 +1,6 @@
 """Pipeline routes: trigger a run, check status."""
 
+import os
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -10,6 +11,15 @@ from api.schemas import PipelineRunRequest, PipelineRunResponse, PipelineStatusR
 from src.sheets_writer import append_transactions
 
 router = APIRouter()
+
+
+def _service_account_path(config: dict) -> str:
+    """Return service account path: env var > config > default."""
+    return (
+        os.environ.get("SERVICE_ACCOUNT_PATH")
+        or config.get("service_account_path")
+        or "/secrets/service_account.json"
+    )
 
 
 @router.post("/pipeline/run", response_model=PipelineRunResponse)
@@ -49,7 +59,7 @@ def run_pipeline(body: PipelineRunRequest = PipelineRunRequest()):
 
     config = get_config()
     spreadsheet_id = config["spreadsheet_id"]
-    service_account_path = config.get("service_account_path", "service_account.json")
+    service_account_path = _service_account_path(config)
 
     store.is_running = True
     try:

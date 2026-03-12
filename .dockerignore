@@ -1,0 +1,25 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Secrets — never bake into image
+.env
+config_secrets.env
+service_account.json
+
+# Data dirs
+downloads/
+logs/
+
+# Git / editor
+.git/
+.gitignore
+*.md
+.claude/
