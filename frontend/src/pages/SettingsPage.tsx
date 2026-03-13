@@ -23,7 +23,7 @@ export default function SettingsPage() {
   useEffect(() => {
     Promise.all([api.getCategories(), api.getProperties()])
       .then(([cats, props]) => {
-        setCategories(cats.categories)
+        setCategories([...cats.income_categories, ...cats.categories])
         setProperties(props.properties)
       })
       .catch(e => addToast(`Failed to load config: ${(e as Error).message}`, 'error'))

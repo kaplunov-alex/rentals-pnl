@@ -10,7 +10,9 @@ from fastapi.staticfiles import StaticFiles
 
 from api.routes import config, pipeline, transactions
 
-# Load .env for local development (no-op if vars already set via environment)
+# Load secrets for local development — tries config_secrets.env first, then .env
+# (no-op if vars already set via environment, e.g. in Docker/Cloud Run)
+load_dotenv("config_secrets.env")
 load_dotenv()
 
 app = FastAPI(

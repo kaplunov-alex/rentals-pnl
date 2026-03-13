@@ -36,7 +36,7 @@ export default function ReviewPage() {
   useEffect(() => {
     Promise.all([api.getCategories(), api.getProperties(), api.pipelineStatus()])
       .then(([cats, props, status]) => {
-        setCategories(cats.categories)
+        setCategories([...cats.income_categories, ...cats.categories])
         setProperties(props.properties)
         setPipelineStatus(status)
       })

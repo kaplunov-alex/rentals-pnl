@@ -1,0 +1,26 @@
+{
+  "name": "projects/YOUR_PROJECT_ID/locations/us-central1/jobs/rental-pnl-monthly-run",
+  "description": "Trigger the rental P&L pipeline on the 3rd of every month at 10am UTC",
+  "schedule": "0 10 3 * *",
+  "timeZone": "America/Los_Angeles",
+  "httpTarget": {
+    "uri": "https://YOUR_CLOUD_RUN_URL/api/pipeline/run",
+    "httpMethod": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "",
+    "oidcToken": {
+      "serviceAccountEmail": "YOUR_SERVICE_ACCOUNT_EMAIL",
+      "audience": "https://YOUR_CLOUD_RUN_URL"
+    }
+  },
+  "retryConfig": {
+    "retryCount": 3,
+    "maxRetryDuration": "0s",
+    "minBackoffDuration": "5s",
+    "maxBackoffDuration": "3600s",
+    "maxDoublings": 5
+  },
+  "attemptDeadline": "320s"
+}

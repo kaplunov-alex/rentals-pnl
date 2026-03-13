@@ -1,4 +1,12 @@
 spreadsheet_id: 1hfScemwFS_JDDjJO2P_Nnf4a9yCCMF8e4wQjJSjhHNE
+
+deployment:
+  project_id: "YOUR_GCP_PROJECT_ID"
+  region: "us-central1"
+  allowed_users:
+    - "kaplunov@gmail.com"
+    - "ikaplunov@gmail.com"
+    - "ilona@blueappledesign.com"
 downloads_dir: ./downloads
 properties:
 - 154 Santa Clara
