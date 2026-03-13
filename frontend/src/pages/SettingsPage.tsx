@@ -31,16 +31,16 @@ export default function SettingsPage() {
   }, [addToast])
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <Toast toasts={toasts} onDismiss={dismissToast} />
 
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Settings</h1>
-        <p className="text-sm text-gray-500">Manage vendor mappings and view configuration.</p>
+        <h1 className="text-2xl font-bold text-gray-900">Categorization Rules</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Manage vendor mappings to auto-categorize future transactions.</p>
       </div>
 
       {loading ? (
-        <div className="text-center py-8 text-gray-400">Loading...</div>
+        <div className="text-center py-16 text-gray-400">Loading...</div>
       ) : (
         <>
           <VendorMappings
@@ -50,33 +50,30 @@ export default function SettingsPage() {
           />
 
           {/* Config summary */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <h3 className="font-semibold text-gray-800 mb-3">Configuration</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Properties</p>
-                <ul className="space-y-1">
-                  {properties.map(p => (
-                    <li key={p} className="text-sm text-gray-700 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />
-                      {p}
-                    </li>
-                  ))}
-                  {properties.length === 0 && <li className="text-sm text-gray-400">No properties configured</li>}
-                </ul>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Categories</p>
-                <ul className="space-y-1">
-                  {categories.map(c => (
-                    <li key={c} className="text-sm text-gray-700 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-green-400 inline-block" />
-                      {c}
-                    </li>
-                  ))}
-                  {categories.length === 0 && <li className="text-sm text-gray-400">No categories configured</li>}
-                </ul>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Properties</p>
+              <ul className="space-y-2">
+                {properties.map(p => (
+                  <li key={p} className="flex items-center gap-2 text-sm text-gray-700">
+                    <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
+                    {p}
+                  </li>
+                ))}
+                {properties.length === 0 && <li className="text-sm text-gray-400">No properties configured</li>}
+              </ul>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Categories</p>
+              <ul className="space-y-2">
+                {categories.map(c => (
+                  <li key={c} className="flex items-center gap-2 text-sm text-gray-700">
+                    <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
+                    {c}
+                  </li>
+                ))}
+                {categories.length === 0 && <li className="text-sm text-gray-400">No categories configured</li>}
+              </ul>
             </div>
           </div>
         </>
