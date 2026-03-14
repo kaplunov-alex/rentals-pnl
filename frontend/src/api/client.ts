@@ -55,4 +55,5 @@ export const api = {
     req<void>(`/config/vendor-mappings/${encodeURIComponent(key)}`, { method: 'DELETE' }),
   getCategories: () => req<import('../types').CategoriesResponse>('/config/categories'),
   getProperties: () => req<{ properties: string[] }>('/config/properties'),
+  getOverview: () => req<import('../types').OverviewData>('/overview'),
 }

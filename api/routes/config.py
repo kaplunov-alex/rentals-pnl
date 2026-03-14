@@ -1,15 +1,19 @@
 """Config routes: vendor mappings, categories, properties."""
 
+import os
+
 from fastapi import APIRouter, HTTPException
 
 from api.dependencies import get_config, reload_config
 from api.schemas import (
     CategoriesResponse,
+    OverviewResponse,
     PropertiesResponse,
     VendorMappingCreate,
     VendorMappingOut,
 )
 from src.config_updater import save_vendor_mapping
+from src.sheets_writer import get_overview_cells
 
 router = APIRouter()
 
@@ -77,3 +81,16 @@ def list_categories():
 def list_properties():
     config = get_config()
     return PropertiesResponse(properties=config.get("properties", []))
+
+
+@router.get("/overview", response_model=OverviewResponse)
+def get_overview():
+    """Read E4:E6 from the Portfolio Summary tab (Total Income, Total Expenses, Net Cash Flow)."""
+    config = get_config()
+    spreadsheet_id = config.get("spreadsheet_id", "")
+    svc = os.environ.get("SERVICE_ACCOUNT_PATH", "service_account.json")
+    try:
+        data = get_overview_cells(spreadsheet_id, svc)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not read overview from sheet: {e}")
+    return OverviewResponse(**data)

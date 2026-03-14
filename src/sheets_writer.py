@@ -213,6 +213,80 @@ def write_monthly_totals(
     return written
 
 
+def get_overview_cells(
+    spreadsheet_id: str,
+    service_account_path: str = "service_account.json",
+    sheet_name: str = "Portfolio Summary",
+    cell_range: str = "E4:E6",
+) -> dict:
+    """
+    Read the three overview cells from the Portfolio Summary tab.
+    Default range E4:E6 maps to Total Income, Total Expenses, Net Cash Flow.
+    Returns {"total_income": float, "total_expenses": float, "net_cash_flow": float}
+    """
+    client = _get_client(service_account_path)
+    spreadsheet = _retry(lambda: client.open_by_key(spreadsheet_id))
+    ws = spreadsheet.worksheet(sheet_name)
+    values = _retry(lambda: ws.get(cell_range, value_render_option="UNFORMATTED_VALUE"))
+
+    def safe_get(idx: int) -> float:
+        try:
+            raw = values[idx][0]
+            return float(raw) if raw != "" else 0.0
+        except (IndexError, TypeError, ValueError):
+            return 0.0
+
+    return {
+        "total_income": safe_get(0),
+        "total_expenses": safe_get(1),
+        "net_cash_flow": safe_get(2),
+    }
+
+
+def get_portfolio_summary(
+    spreadsheet_id: str,
+    service_account_path: str = "service_account.json",
+    sheet_name: str = "Portfolio Summary",
+) -> dict:
+    """
+    Read a P&L grid tab (Portfolio Summary or a property tab) and return
+    rows with monthly values keyed by 3-letter month abbreviation.
+
+    Returns: {"months": [...], "rows": [{"label": str, "values": {"jan": float, ...}}]}
+    """
+    client = _get_client(service_account_path)
+    spreadsheet = _retry(lambda: client.open_by_key(spreadsheet_id))
+    ws = spreadsheet.worksheet(sheet_name)
+    all_values = _retry(lambda: ws.get_all_values())
+
+    header_row_idx = _find_header_row(all_values)
+    if header_row_idx is None:
+        return {"months": [], "rows": []}
+
+    header_row = all_values[header_row_idx]
+    months: List[str] = []
+    month_cols: List[int] = []
+    valid_months = set(MONTH_SHORT.values())
+    for j, cell in enumerate(header_row):
+        val = cell.strip().lower()
+        if val in valid_months:
+            months.append(val)
+            month_cols.append(j)
+
+    rows = []
+    for i in range(header_row_idx + 1, len(all_values)):
+        row = all_values[i]
+        if not row or not row[0].strip():
+            continue
+        label = row[0].strip()
+        values: dict = {}
+        for col_j, month in zip(month_cols, months):
+            values[month] = _parse_cell_value(row[col_j]) if col_j < len(row) else 0.0
+        rows.append({"label": label, "values": values})
+
+    return {"months": months, "rows": rows}
+
+
 # Keep old name as alias so any external callers aren't broken
 def append_transactions(
     transactions: List[Transaction],

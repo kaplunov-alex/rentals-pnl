@@ -5,6 +5,8 @@ import DashboardPage from './pages/DashboardPage'
 import SettingsPage from './pages/SettingsPage'
 import TransactionsPage from './pages/TransactionsPage'
 import { api } from './api/client'
+import { useOverview } from './context/OverviewContext'
+import { useTransactions } from './context/TransactionsContext'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${
@@ -50,6 +52,8 @@ export default function App() {
   const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState<string | null>(null)
   const navigate = useNavigate()
+  const { refresh: refreshOverview } = useOverview()
+  const { month, setMonth } = useTransactions()
 
   useEffect(() => {
     api.pipelineStatus().then(status => {
@@ -62,8 +66,9 @@ export default function App() {
   const handleSync = async () => {
     setSyncing(true)
     try {
-      await api.runPipeline()
+      await api.runPipeline(month || undefined)
       setLastSync('Synced just now')
+      refreshOverview()
     } catch {
       navigate('/upload')
     } finally {
@@ -109,8 +114,17 @@ export default function App() {
         </nav>
 
         {/* Google Sheets sync footer */}
-        <div className="px-3 py-4 border-t border-gray-100">
-          <div className="bg-gray-50 rounded-lg p-3 mb-3">
+        <div className="px-3 py-4 border-t border-gray-100 space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Month</label>
+            <input
+              type="month"
+              value={month}
+              onChange={e => setMonth(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <div className="bg-gray-50 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
               <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z" />
@@ -131,6 +145,7 @@ export default function App() {
             {syncing ? 'Syncing…' : 'Sync Now'}
           </button>
         </div>
+
       </aside>
 
       {/* Main content */}

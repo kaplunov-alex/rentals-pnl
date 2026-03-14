@@ -46,3 +46,9 @@ export interface BulkUpdateItem {
   property?: string
   category?: string
 }
+
+export interface OverviewData {
+  total_income: number
+  total_expenses: number
+  net_cash_flow: number
+}

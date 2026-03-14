@@ -76,3 +76,9 @@ class CategoriesResponse(BaseModel):
 
 class PropertiesResponse(BaseModel):
     properties: List[str]
+
+
+class OverviewResponse(BaseModel):
+    total_income: float
+    total_expenses: float
+    net_cash_flow: float
