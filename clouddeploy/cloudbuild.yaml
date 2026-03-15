@@ -4,16 +4,8 @@ steps:
     args:
       - 'build'
       - '-t'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/rental-pnl:${SHORT_SHA}'
-      - '-t'
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/rental-pnl:latest'
       - '.'
-
-  # Push the versioned tag
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/rental-pnl:${SHORT_SHA}'
 
   # Push the latest tag
   - name: 'gcr.io/cloud-builders/docker'
@@ -21,9 +13,7 @@ steps:
       - 'push'
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/rental-pnl:latest'
 
-# The image produced by this build — used by deploy.sh to reference the exact SHA
 images:
-  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/rental-pnl:${SHORT_SHA}'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/rental-pnl:latest'
 
 # Substitution defaults — override via --substitutions flag in deploy.sh
