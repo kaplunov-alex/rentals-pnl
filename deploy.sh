@@ -95,10 +95,14 @@ fi
 # Check required local files
 [[ -f "${SCRIPT_DIR}/service_account.json" ]] \
   || error "service_account.json not found in project root."
-[[ -f "${SCRIPT_DIR}/.env" ]] \
-  || error ".env file not found. It must contain ANTHROPIC_API_KEY=sk-ant-..."
+# Accept either config_secrets.env (project convention) or .env
+SECRETS_FILE=""
+[[ -f "${SCRIPT_DIR}/config_secrets.env" ]] && SECRETS_FILE="${SCRIPT_DIR}/config_secrets.env"
+[[ -z "${SECRETS_FILE}" && -f "${SCRIPT_DIR}/.env" ]] && SECRETS_FILE="${SCRIPT_DIR}/.env"
+[[ -z "${SECRETS_FILE}" ]] \
+  && error "No secrets file found. Create config_secrets.env with ANTHROPIC_API_KEY=sk-ant-..."
 
-ANTHROPIC_API_KEY="$(grep -E '^ANTHROPIC_API_KEY=' "${SCRIPT_DIR}/.env" | cut -d= -f2- | tr -d '"'"'")"
+ANTHROPIC_API_KEY="$(grep -E '^ANTHROPIC_API_KEY=' "${SECRETS_FILE}" | cut -d= -f2- | tr -d '"'"'")"
 [[ -z "${ANTHROPIC_API_KEY}" ]] && error "ANTHROPIC_API_KEY not found in .env"
 
 info "Prerequisites OK — project: ${PROJECT_ID}, region: ${REGION}"
@@ -187,8 +191,8 @@ gcloud run deploy "${SERVICE_NAME}" \
   --service-account="${DEPLOY_SA}" \
   --allow-unauthenticated=false \
   --set-secrets="ANTHROPIC_API_KEY=anthropic-api-key:latest" \
-  --set-secrets="/secrets/service_account.json=sheets-service-account:latest" \
-  --set-env-vars="GOOGLE_APPLICATION_CREDENTIALS=/secrets/service_account.json" \
+  --set-secrets="//secrets/service_account.json=sheets-service-account:latest" \
+  --set-env-vars="SERVICE_ACCOUNT_PATH=//secrets/service_account.json" \
   --memory=512Mi \
   --cpu=1 \
   --max-instances=1 \

@@ -1,22 +1,3 @@
-spreadsheet_id: 1hfScemwFS_JDDjJO2P_Nnf4a9yCCMF8e4wQjJSjhHNE
-
-deployment:
-  project_id: "YOUR_GCP_PROJECT_ID"
-  region: "us-central1"
-  allowed_users:
-    - "kaplunov@gmail.com"
-    - "ikaplunov@gmail.com"
-    - "ilona@blueappledesign.com"
-downloads_dir: ./downloads
-properties:
-- 154 Santa Clara
-- 11873 E MapleWood
-- 30 Bishop Oak
-income_categories:
-- Rental Income
-- Late Fees
-- Security Deposit
-- Other Income
 categories:
 - Mortgage/Loan Payment
 - Property Tax
@@ -34,127 +15,146 @@ categories:
 - Meals
 - Subscriptions
 - Other Expenses
+deployment:
+  allowed_users:
+  - kaplunov@gmail.com
+  - ikaplunov@gmail.com
+  - ilona@blueappledesign.com
+  project_id: rental-pnl-automation
+  region: us-central1
+downloads_dir: ./downloads
+income_categories:
+- Rental Income
+- Late Fees
+- Security Deposit
+- Other Income
+properties:
+- 154 Santa Clara
+- 11873 E MapleWood
+- 30 Bishop Oak
+property_sheets:
+  11873 E Maplewood:
+    spreadsheet_id: 19kqGWWNS-CtohFc8SIL4lm3ow5NJRnuQd80SIAToPgg
+  154 Santa Clara:
+    spreadsheet_id: 12d83Pjnl6fCmtqNhjPhnoyFKZlLA7RR0FdhVM0Ox8Zw
+  30 Bishop Oak:
+    spreadsheet_id: 1DsgnBdpUHcK4fzHi6FmW6X3NxoPi8vGwrLJB6wS6nz4
 skip_descriptions:
 - CHASE CREDIT CRD EPAY
-vendor_mappings:
-  QUICKEN LOANS:
-    property: 154 Santa Clara
-    category: Mortgage/Loan Payment
-  STATE FARM:
-    property: 154 Santa Clara
-    category: Insurance
-  TST* WILDSEED PALO:
-    property: 30 Bishop Oak
-    category: Meals
-  'WALGREENS #2126':
-    property: 30 Bishop Oak
-    category: Supplies
-  'TJMAXX #0418':
-    property: 30 Bishop Oak
-    category: Supplies
-  AMAZON MKTPL*PD8J12LX3:
-    property: 30 Bishop Oak
-    category: Supplies
-  AMAZON MKTPL*1A8GJ31A3:
-    property: 30 Bishop Oak
-    category: Supplies
-  AMAZON MKTPL*6X9BZ64N3:
-    property: 30 Bishop Oak
-    category: Supplies
-  BIANCHINI'S MARKET:
-    property: 30 Bishop Oak
-    category: Meals
-  TST*HUMMUS MEDITERRANEAN:
-    property: 30 Bishop Oak
-    category: Meals
-  AHS AHS.COM:
-    property: 30 Bishop Oak
-    category: Repairs & Maintenance
-  TST*MACARENA:
-    property: 30 Bishop Oak
-    category: Meals
-  UBER   *TRIP:
-    property: 30 Bishop Oak
-    category: Travel/Mileage
-  '[UBER   *TRIP]':
-    property: 30 Bishop Oak
-    category: Travel/Mileage
-  AMAZON MKTPL*Z08G82RU3:
-    property: 30 Bishop Oak
-    category: Supplies
-  SIGONAS FARMERS MARKET:
-    property: 30 Bishop Oak
-    category: Meals
-  UNITED:
-    property: 30 Bishop Oak
-    category: Travel/Mileage
-  '*WAYFAIR4361253417':
-    property: 30 Bishop Oak
-    category: Household Goods
-  ARLO TECHNOLOGIES INC:
-    property: 30 Bishop Oak
-    category: Repairs & Maintenance
-  ALTITUDE RMS RESIDENT:
-    property: 11873 E MapleWood
-    category: Property Management
-  BILL PAY RECOLOGY:
-    property: 30 Bishop Oak
-    category: Utilities (Owner Paid)
-  ZELLE FROM GEORGE:
-    property: 154 Santa Clara
-    category: Rental Income
-  HOME MTG AUTO:
-    property: 30 Bishop Oak
-    category: Mortgage/Loan Payment
-  CENTRAL LOAN ADM:
-    property: 154 Santa Clara
-    category: Mortgage/Loan Payment
-  ZELLE JUAN SANTIAGO:
-    property: 30 Bishop Oak
-    category: Landscaping
-  STAYWITHGK L.L.C SENDER:
-    property: 30 Bishop Oak
-    category: Rental Income
-  ONLINE TRANSFER KAPLUNOV:
-    property: 11873 E MapleWood
-    category: HOA Fees
-  SAFECO CORPORATION:
-    property: 154 Santa Clara
-    category: Insurance
-  YOUR SERVICE PROS:
-    property: 154 Santa Clara
-    category: Repairs & Maintenance
-  ANNUAL MEMBERSHIP FEE:
-    property: 30 Bishop Oak
-    category: Subscriptions
-  ZELLE FROM NICOLAS:
-    property: 154 Santa Clara
-    category: Rental Income
-  ARAPAHOE TAXPYMT ALEXANDER:
-    property: 11873 E MapleWood
-    category: Property Tax
-  ZELLE FROM DOHNER:
-    property: 11873 E MapleWood
-    category: Rental Income
-  BOUDREAU PLUMBIN SALE:
-    property: 30 Bishop Oak
-    category: Repairs & Maintenance
-  TEST VENDOR:
-    property: 30 Bishop Oak
-    category: Other Expenses
-  B D AUTOMOTIVE:
-    property: 30 Bishop Oak
-    category: Travel/Mileage
 split_rules:
   BILL PAY Juan Santiago:
   - amount: -340.0
     parts:
-    - property: 154 Santa Clara
+    - amount: -140.0
       category: Landscaping
-      amount: -140.0
-    - property: 30 Bishop Oak
+      property: 154 Santa Clara
+    - amount: -200.0
       category: Landscaping
-      amount: -200.0
-  - default:
       property: 30 Bishop Oak
+  - default:
       category: Landscaping
+      property: 30 Bishop Oak
+spreadsheet_id: 1hfScemwFS_JDDjJO2P_Nnf4a9yCCMF8e4wQjJSjhHNE
+vendor_mappings:
+  '*WAYFAIR4361253417':
+    category: Household Goods
+    property: 30 Bishop Oak
+  AHS AHS.COM:
+    category: Repairs & Maintenance
+    property: 30 Bishop Oak
+  ALTITUDE RMS RESIDENT:
+    category: Property Management
+    property: 11873 E MapleWood
+  AMAZON MKTPL*1A8GJ31A3:
+    category: Supplies
+    property: 30 Bishop Oak
+  AMAZON MKTPL*6X9BZ64N3:
+    category: Supplies
+    property: 30 Bishop Oak
+  AMAZON MKTPL*PD8J12LX3:
+    category: Supplies
+    property: 30 Bishop Oak
+  AMAZON MKTPL*Z08G82RU3:
+    category: Supplies
+    property: 30 Bishop Oak
+  ANNUAL MEMBERSHIP FEE:
+    category: Subscriptions
+    property: 30 Bishop Oak
+  ARAPAHOE CO TAXPYMT 260207 3495788 ALEXANDER *KAPLUNOV:
+    category: Property Tax
+    property: 11873 E MapleWood
+  ARAPAHOE TAXPYMT ALEXANDER:
+    category: Property Tax
+    property: 11873 E MapleWood
+  ARLO TECHNOLOGIES INC:
+    category: Repairs & Maintenance
+    property: 30 Bishop Oak
+  BILL PAY RECOLOGY:
+    category: Utilities (Owner Paid)
+    property: 30 Bishop Oak
+  BOUDREAU PLUMBIN SALE:
+    category: Repairs & Maintenance
+    property: 30 Bishop Oak
+  CENTRAL LOAN ADM:
+    category: Mortgage/Loan Payment
+    property: 154 Santa Clara
+  HOME MTG AUTO:
+    category: Mortgage/Loan Payment
+    property: 30 Bishop Oak
+  ONLINE TRANSFER KAPLUNOV:
+    category: HOA Fees
+    property: 11873 E MapleWood
+  QUICKEN LOANS:
+    category: Mortgage/Loan Payment
+    property: 154 Santa Clara
+  SAFECO CORPORATION:
+    category: Insurance
+    property: 154 Santa Clara
+  STATE FARM:
+    category: Insurance
+    property: 154 Santa Clara
+  STAYWITHGK L.L.C SENDER:
+    category: Rental Income
+    property: 30 Bishop Oak
+  'TJMAXX #0418':
+    category: Supplies
+    property: 30 Bishop Oak
+  TST* WILDSEED - PALO ALTO:
+    category: Meals
+    property: 30 Bishop Oak
+  TST*CASCAL:
+    category: Meals
+    property: 30 Bishop Oak
+  TST*HUMMUS MEDITERRANEAN:
+    category: Meals
+    property: 30 Bishop Oak
+  TST*MACARENA:
+    category: Meals
+    property: 30 Bishop Oak
+  UBER   *TRIP:
+    category: Travel/Mileage
+    property: 30 Bishop Oak
+  UNITED:
+    category: Travel/Mileage
+    property: 30 Bishop Oak
+  'WALGREENS #2126':
+    category: Supplies
+    property: 30 Bishop Oak
+  YOUR SERVICE PROS:
+    category: Repairs & Maintenance
+    property: 154 Santa Clara
+  ZELLE FROM DOHNER:
+    category: Rental Income
+    property: 11873 E MapleWood
+  ZELLE FROM GEORGE:
+    category: Rental Income
+    property: 154 Santa Clara
+  ZELLE FROM NICOLAS:
+    category: Rental Income
+    property: 154 Santa Clara
+  ZELLE JUAN SANTIAGO:
+    category: Landscaping
+    property: 30 Bishop Oak
+  '[UBER   *TRIP]':
+    category: Travel/Mileage
+    property: 30 Bishop Oak

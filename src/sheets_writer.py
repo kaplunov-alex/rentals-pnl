@@ -287,6 +287,139 @@ def get_portfolio_summary(
     return {"months": months, "rows": rows}
 
 
+_PROPERTY_SHEET_HEADERS = ["Date", "Vendor", "Amount", "Bank/Card", "Category", "Comments"]
+
+
+def write_property_transaction_sheets(
+    transactions: List[Transaction],
+    config: dict,
+    service_account_path: str = "service_account.json",
+) -> Dict[str, int]:
+    """
+    Append transactions to per-property transaction sheets.
+
+    Each property has its own Google Sheet (IDs in config['property_sheets']).
+    Tabs are named by year (e.g. "2026"); created automatically if missing.
+    Columns: Date | Vendor | Amount | Bank/Card | Category | Comments
+
+    Deduplication: if a month (YYYY-MM) already has any rows in the target tab,
+    all transactions for that month are skipped entirely.
+
+    Returns {property_name: rows_appended}.  Raises on first unrecoverable error.
+    """
+    property_sheets_cfg = config.get("property_sheets", {})
+    if not property_sheets_cfg:
+        logger.warning("No property_sheets configured — skipping per-property sheet write.")
+        return {}
+
+    client = _get_client(service_account_path)
+
+    # Group transactions by property
+    by_property: Dict[str, List[Transaction]] = {}
+    for txn in transactions:
+        if not txn.property:
+            continue
+        by_property.setdefault(txn.property, []).append(txn)
+
+    logger.info(
+        f"write_property_transaction_sheets: {len(transactions)} txns, "
+        f"{len(by_property)} properties: {list(by_property.keys())}"
+    )
+
+    written: Dict[str, int] = {}
+    errors: Dict[str, str] = {}
+
+    for prop_name, txns in by_property.items():
+        try:
+            # Case-insensitive lookup for property sheet config
+            sheet_cfg = next(
+                (v for k, v in property_sheets_cfg.items() if k.lower() == prop_name.lower()),
+                None,
+            )
+            if not sheet_cfg:
+                msg = f"No property_sheets entry for {prop_name!r} (config keys: {list(property_sheets_cfg.keys())})"
+                logger.warning(msg)
+                errors[prop_name] = msg
+                continue
+
+            sheet_id = sheet_cfg.get("spreadsheet_id")
+            if not sheet_id:
+                msg = f"Missing spreadsheet_id for {prop_name!r}"
+                logger.warning(msg)
+                errors[prop_name] = msg
+                continue
+
+            logger.info(f"Opening property sheet for {prop_name!r} (id={sheet_id})")
+            spreadsheet = _retry(lambda sid=sheet_id: client.open_by_key(sid))
+
+            # Group by year
+            by_year: Dict[int, List[Transaction]] = {}
+            for txn in txns:
+                by_year.setdefault(txn.date.year, []).append(txn)
+
+            prop_written = 0
+
+            for year, year_txns in by_year.items():
+                tab_name = str(year)
+
+                # Get or create year tab
+                try:
+                    ws = spreadsheet.worksheet(tab_name)
+                    logger.info(f"Found existing tab {tab_name!r} in {prop_name!r}")
+                except gspread.exceptions.WorksheetNotFound:
+                    ws = _retry(lambda s=spreadsheet, t=tab_name: s.add_worksheet(title=t, rows=1000, cols=10))
+                    _retry(lambda w=ws: w.append_row(_PROPERTY_SHEET_HEADERS, value_input_option="USER_ENTERED"))
+                    logger.info(f"Created tab {tab_name!r} in {prop_name!r} transaction sheet.")
+
+                # Read existing rows to find already-written months (skip header row)
+                all_values = _retry(lambda w=ws: w.get_all_values())
+                logger.info(f"{prop_name!r} / {tab_name}: {len(all_values)} rows already in sheet")
+                written_months: set = set()
+                for row in all_values[1:]:
+                    if row and row[0].strip():
+                        # Date is YYYY-MM-DD; extract YYYY-MM
+                        written_months.add(row[0].strip()[:7])
+
+                # Build rows to append, skipping any month already present
+                rows_to_append = []
+                skipped_months: set = set()
+                for txn in year_txns:
+                    txn_month = txn.date.strftime("%Y-%m")
+                    if txn_month in written_months:
+                        skipped_months.add(txn_month)
+                        continue
+                    rows_to_append.append([
+                        txn.date.strftime("%Y-%m-%d"),
+                        txn.description,
+                        txn.amount,
+                        txn.source,
+                        txn.category or "",
+                        txn.comments or "",
+                    ])
+                    written_months.add(txn_month)  # mark month as written for intra-batch consistency
+
+                if skipped_months:
+                    logger.info(f"{prop_name!r} / {tab_name}: skipped months already present: {sorted(skipped_months)}")
+
+                logger.info(f"{prop_name!r} / {tab_name}: {len(rows_to_append)} new rows to append (of {len(year_txns)} txns)")
+                if rows_to_append:
+                    _retry(lambda w=ws, r=rows_to_append: w.append_rows(r, value_input_option="USER_ENTERED"))
+                    prop_written += len(rows_to_append)
+                    logger.info(f"{prop_name!r} / {tab_name}: appended {len(rows_to_append)} rows.")
+
+            written[prop_name] = prop_written
+
+        except Exception as e:
+            logger.error(f"Failed to write property sheet for {prop_name!r}: {e}", exc_info=True)
+            errors[prop_name] = str(e)
+
+    if errors:
+        error_summary = "; ".join(f"{p}: {e}" for p, e in errors.items())
+        raise RuntimeError(f"Property sheet write errors: {error_summary}")
+
+    return written
+
+
 # Keep old name as alias so any external callers aren't broken
 def append_transactions(
     transactions: List[Transaction],

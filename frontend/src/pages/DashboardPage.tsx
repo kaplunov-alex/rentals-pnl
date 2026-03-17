@@ -44,7 +44,7 @@ function SummaryCard({
 }
 
 export default function DashboardPage() {
-  const { overview, loading: overviewLoading } = useOverview()
+  const { overview, loading: overviewLoading, error: overviewError } = useOverview()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [txnsLoading, setTxnsLoading] = useState(false)
   const [month, setMonth] = useState(currentMonthValue())
@@ -76,7 +76,6 @@ export default function DashboardPage() {
     ? transactions
     : transactions.filter(t => t.property === selectedProperty)
 
-  const pendingCount = propFiltered.filter(t => t.needs_review).length
   const recentTxns = [...propFiltered]
     .filter(t => !t.needs_review)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -92,7 +91,7 @@ export default function DashboardPage() {
 
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Overview</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-sm text-gray-500 mt-0.5">Here's the financial summary for your properties this month.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -113,8 +112,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Overview error banner */}
+      {overviewError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+          <span className="font-medium">Could not load overview from Google Sheets:</span> {overviewError}
+        </div>
+      )}
+
       {/* Summary cards — from Google Sheets */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <SummaryCard
           title="Total Income"
           value={overview ? fmt(overview.total_income) : '—'}
@@ -146,16 +152,6 @@ export default function DashboardPage() {
             <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          }
-        />
-        <SummaryCard
-          title="Pending Categorization"
-          value={String(pendingCount)}
-          subtitle="Transactions need review"
-          icon={
-            <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
           }
         />

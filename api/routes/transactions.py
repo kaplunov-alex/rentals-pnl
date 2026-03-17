@@ -33,6 +33,7 @@ def _txn_to_out(txn_id: str, txn) -> TransactionOut:
         txn_type=txn.txn_type,
         needs_review=txn.needs_review,
         raw_file=txn.raw_file,
+        comments=txn.comments or None,
     )
 
 
@@ -115,6 +116,8 @@ def update_transaction(txn_id: str, body: TransactionUpdate):
     if body.category is not None:
         txn.category = body.category
         txn.needs_review = False  # manual edit resolves review flag
+    if body.comments is not None:
+        txn.comments = body.comments
 
     return _txn_to_out(txn_id, txn)
 
@@ -140,5 +143,7 @@ def bulk_update_transactions(body: BulkUpdateRequest):
         if item.category is not None:
             txn.category = item.category
             txn.needs_review = False
+        if item.comments is not None:
+            txn.comments = item.comments
         updated.append(_txn_to_out(item.id, txn))
     return updated

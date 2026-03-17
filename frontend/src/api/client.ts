@@ -19,7 +19,7 @@ export const api = {
   },
   listTransactions: (month?: string) =>
     req<import('../types').Transaction[]>(`/transactions${month ? `?month=${month}` : ''}`),
-  updateTransaction: (id: string, data: { property?: string; category?: string }) =>
+  updateTransaction: (id: string, data: { property?: string; category?: string; comments?: string }) =>
     req<import('../types').Transaction>(`/transactions/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

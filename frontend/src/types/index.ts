@@ -9,6 +9,7 @@ export interface Transaction {
   txn_type: string
   needs_review: boolean
   raw_file: string
+  comments: string | null
 }
 
 export interface UploadResponse {
@@ -45,6 +46,7 @@ export interface BulkUpdateItem {
   id: string
   property?: string
   category?: string
+  comments?: string
 }
 
 export interface OverviewData {

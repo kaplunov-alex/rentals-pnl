@@ -17,17 +17,20 @@ class TransactionOut(BaseModel):
     txn_type: str
     needs_review: bool
     raw_file: str
+    comments: Optional[str] = None
 
 
 class TransactionUpdate(BaseModel):
     property: Optional[str] = None
     category: Optional[str] = None
+    comments: Optional[str] = None
 
 
 class BulkUpdateItem(BaseModel):
     id: str
     property: Optional[str] = None
     category: Optional[str] = None
+    comments: Optional[str] = None
 
 
 class BulkUpdateRequest(BaseModel):

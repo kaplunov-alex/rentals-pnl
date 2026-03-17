@@ -277,3 +277,39 @@ The CLI (src/main.py) continues to work as before. The web app (api/app.py) impo
 
 The only difference is that the web app adds a review/edit step between categorization and writing to sheets, while the CLI writes immediately (flagging uncertain ones as "REVIEW" in the sheet).
 
+## Per-Property Transaction Sheets
+
+### Overview
+In addition to the P&L Google Sheet, each property has its own dedicated Google Sheet that logs all transactions for that property. These serve as a permanent, detailed transaction ledger.
+
+### Property Transaction Sheets
+- "154 Santa Clara Transactions" — Spreadsheet ID: YOUR_ID_HERE
+- "30 Bishop Oak Transactions" — Spreadsheet ID: YOUR_ID_HERE
+- "11873 E Maplewood Transactions" — Spreadsheet ID: YOUR_ID_HERE
+
+Each sheet has a tab per year (2026, 2027, etc.).
+
+### Sheet Column Structure
+| Column | Field |
+|--------|-------|
+| A | Date |
+| B | Vendor |
+| C | Amount |
+| D | Bank/Card (values: "Wells Fargo" or "Chase") |
+| E | Category |
+| F | Comments/Description |
+
+### Sync Behavior
+- When transactions are pushed to the P&L sheet, they are also written to the corresponding property's transaction sheet in the correct year tab
+- **Deduplication:** Before writing, check existing rows in the target sheet. A transaction is considered a duplicate if BOTH the Vendor name AND the Amount match an existing row. If a match is found, skip that transaction. Append non-duplicate transactions at the end.
+- The Comments/Description column (F) is populated from a new comments field in the web UI review step
+
+### Comments Feature
+- The transaction review UI (ReviewPage) should include an editable Comments column for each transaction
+- Comments are stored in the property transaction sheets (column F) but NOT in the P&L sheet
+- Comments are optional — blank is fine
+
+
+### Important
+- Share each of the three new Google Sheets with the same service account email used for the P&L sheet
+- The property names in property_sheets must match the property names used in the categorizer

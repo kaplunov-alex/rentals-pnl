@@ -10,7 +10,7 @@ const fmt = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 
 // Per-row local edits before saving
-type RowEdits = Record<string, { category: string; property: string }>
+type RowEdits = Record<string, { category: string; property: string; comments: string }>
 
 type TabFilter = 'review' | 'categorized' | 'all'
 
@@ -19,7 +19,7 @@ export default function TransactionsPage() {
   const [rowEdits, setRowEdits] = useState<RowEdits>({})
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<TabFilter>('review')
+  const [tab, setTab] = useState<TabFilter>('all')
   const [showFilters, setShowFilters] = useState(false)
   const [selectedProperty, setSelectedProperty] = useState('all')
   const [categories, setCategories] = useState<string[]>([])
@@ -43,26 +43,29 @@ export default function TransactionsPage() {
       .catch(() => {})
   }, [])
 
-  // Sync row edits when transactions change (new month, upload, etc.)
+  // Initialize row edits for new transactions; preserve any edits already in progress
   useEffect(() => {
-    const edits: RowEdits = {}
-    transactions.forEach(t => {
-      edits[t.id] = { category: t.category ?? '', property: t.property ?? '' }
+    setRowEdits(prev => {
+      const next: RowEdits = {}
+      transactions.forEach(t => {
+        // Keep existing unsaved edits; initialize from transaction data only for new rows
+        next[t.id] = prev[t.id] ?? { category: t.category ?? '', property: t.property ?? '', comments: t.comments ?? '' }
+      })
+      return next
     })
-    setRowEdits(edits)
   }, [transactions])
 
   const handleSave = async (txnId: string, createRule: boolean) => {
     const txn = transactions.find(t => t.id === txnId)
     if (!txn) return
-    const edits = rowEdits[txnId] ?? { category: txn.category ?? '', property: txn.property ?? '' }
+    const edits = rowEdits[txnId] ?? { category: txn.category ?? '', property: txn.property ?? '', comments: txn.comments ?? '' }
     if (!edits.category || !edits.property) {
       addToast('Please select both a category and a property before saving.', 'error')
       return
     }
     setSavingIds(prev => new Set(prev).add(txnId))
     try {
-      const updated = await api.updateTransaction(txnId, { category: edits.category, property: edits.property })
+      const updated = await api.updateTransaction(txnId, { category: edits.category, property: edits.property, comments: edits.comments })
       updateTransaction(updated)
 
       if (createRule) {
@@ -78,7 +81,7 @@ export default function TransactionsPage() {
     }
   }
 
-  const setRowField = (id: string, field: 'category' | 'property', value: string) => {
+  const setRowField = (id: string, field: 'category' | 'property' | 'comments', value: string) => {
     setRowEdits(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }))
   }
 
@@ -192,9 +195,10 @@ export default function TransactionsPage() {
 
       {/* Transaction list */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="grid grid-cols-[120px_1fr_280px_120px_180px] gap-4 px-5 py-3 border-b border-gray-100 bg-gray-50">
+        <div className="grid grid-cols-[110px_1fr_180px_280px_110px_160px] gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50">
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Date</span>
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Description</span>
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Comments</span>
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Category & Property</span>
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Amount</span>
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Action</span>
@@ -213,13 +217,13 @@ export default function TransactionsPage() {
         ) : (
           <div className="divide-y divide-gray-100">
             {filtered.map(txn => {
-              const edits = rowEdits[txn.id] ?? { category: txn.category ?? '', property: txn.property ?? '' }
+              const edits = rowEdits[txn.id] ?? { category: txn.category ?? '', property: txn.property ?? '', comments: txn.comments ?? '' }
               const isSaving = savingIds.has(txn.id)
               const isReady = edits.category && edits.property
               const fmtDate = new Date(txn.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
 
               return (
-                <div key={txn.id} className="grid grid-cols-[120px_1fr_280px_120px_180px] gap-4 px-5 py-4 items-center hover:bg-gray-50 transition-colors">
+                <div key={txn.id} className="grid grid-cols-[110px_1fr_180px_280px_110px_160px] gap-3 px-5 py-4 items-center hover:bg-gray-50 transition-colors">
                   <span className="text-sm text-gray-600">{fmtDate}</span>
 
                   <div className="min-w-0">
@@ -231,6 +235,15 @@ export default function TransactionsPage() {
                       <p className="text-xs text-amber-500 mt-0.5">Needs categorization</p>
                     )}
                   </div>
+
+                  <input
+                    type="text"
+                    placeholder="Add note…"
+                    value={edits.comments}
+                    onChange={e => setRowField(txn.id, 'comments', e.target.value)}
+                    disabled={isSaving}
+                    className="border border-gray-200 rounded-lg px-2.5 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 w-full"
+                  />
 
                   <div className="flex flex-col gap-1.5">
                     <select
@@ -257,15 +270,24 @@ export default function TransactionsPage() {
                     {txn.amount < 0 ? '-' : '+'}{fmt(Math.abs(txn.amount))}
                   </span>
 
-                  <div className="flex justify-end">
+                  <div className="flex justify-end gap-1.5">
                     {txn.needs_review ? (
-                      <button
-                        onClick={() => handleSave(txn.id, true)}
-                        disabled={isSaving || !isReady}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
-                      >
-                        {isSaving ? 'Saving…' : 'Save & Create Rule'}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleSave(txn.id, false)}
+                          disabled={isSaving || !isReady}
+                          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 text-gray-700 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          {isSaving ? 'Saving…' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => handleSave(txn.id, true)}
+                          disabled={isSaving || !isReady}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap"
+                        >
+                          {isSaving ? 'Saving…' : '+ Rule'}
+                        </button>
+                      </>
                     ) : (
                       <button
                         onClick={() => handleSave(txn.id, false)}

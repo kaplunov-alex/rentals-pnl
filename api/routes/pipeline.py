@@ -8,18 +8,21 @@ from fastapi import APIRouter, HTTPException
 from api import store
 from api.dependencies import get_config
 from api.schemas import PipelineRunRequest, PipelineRunResponse, PipelineStatusResponse
-from src.sheets_writer import append_transactions
+from src.sheets_writer import append_transactions, write_property_transaction_sheets
 
 router = APIRouter()
 
 
 def _service_account_path(config: dict) -> str:
     """Return service account path: env var > config > default."""
-    return (
+    svc = (
         os.environ.get("SERVICE_ACCOUNT_PATH")
         or config.get("service_account_path")
-        or "/secrets/service_account.json"
+        or "service_account.json"
     )
+    if not os.path.exists(svc):
+        svc = "service_account.json"
+    return svc
 
 
 @router.post("/pipeline/run", response_model=PipelineRunResponse)
@@ -65,6 +68,22 @@ def run_pipeline(body: PipelineRunRequest = PipelineRunRequest()):
     try:
         written = append_transactions(txns, spreadsheet_id, service_account_path)
         total_written = sum(written.values())
+
+        prop_written: dict = {}
+        prop_error: str | None = None
+        try:
+            prop_written = write_property_transaction_sheets(txns, config, service_account_path)
+        except Exception as pe:
+            prop_error = str(pe)
+
+        total_prop_written = sum(prop_written.values())
+        prop_detail = ", ".join(f"{p}: {n}" for p, n in prop_written.items()) if prop_written else "none"
+
+        if prop_error:
+            msg = f"P&L: {total_written} cells updated. Transaction logs FAILED: {prop_error}"
+        else:
+            msg = f"P&L: {total_written} cells updated. Transaction logs: {total_prop_written} rows appended ({prop_detail})."
+
         store.last_run = {
             "status": "success",
             "transactions_written": total_written,
@@ -75,7 +94,7 @@ def run_pipeline(body: PipelineRunRequest = PipelineRunRequest()):
             status="success",
             transactions_written=total_written,
             details=written,
-            message=f"Wrote {total_written} transactions to Google Sheets.",
+            message=msg,
         )
     except Exception as e:
         store.last_run = {"status": "error", "message": str(e)}

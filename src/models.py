@@ -14,6 +14,7 @@ class Transaction:
     needs_review: bool = False
     raw_file: str = ""
     txn_type: str = "Expense"  # "Income" or "Expense"
+    comments: str = ""
 
     def to_sheet_row(self):
         return [

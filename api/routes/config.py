@@ -44,7 +44,7 @@ def add_vendor_mapping(body: VendorMappingCreate):
     return VendorMappingOut(key=body.key, property=body.property, category=body.category)
 
 
-@router.delete("/config/vendor-mappings/{key}", status_code=204)
+@router.delete("/config/vendor-mappings/{key:path}", status_code=204)
 def delete_vendor_mapping(key: str):
     import yaml
     config = get_config()
@@ -89,6 +89,8 @@ def get_overview():
     config = get_config()
     spreadsheet_id = config.get("spreadsheet_id", "")
     svc = os.environ.get("SERVICE_ACCOUNT_PATH", "service_account.json")
+    if not os.path.exists(svc):
+        svc = "service_account.json"
     try:
         data = get_overview_cells(spreadsheet_id, svc)
     except Exception as e:

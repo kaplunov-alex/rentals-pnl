@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.categorizer import categorize_transactions
 from src.csv_parser import detect_and_parse
 from src.models import Transaction
-from src.sheets_writer import append_transactions
+from src.sheets_writer import append_transactions, write_property_transaction_sheets
 
 load_dotenv()
 
@@ -145,6 +145,7 @@ def run(config_path: str = "config.yaml", interactive: bool = True, only_file: s
     # Write to Sheets (overwrites cell totals — idempotent per month)
     logger.info(f"Writing {len(all_transactions)} transactions to Google Sheets…")
     written = append_transactions(all_transactions, spreadsheet_id, service_account_path)
+    write_property_transaction_sheets(all_transactions, config, service_account_path)
 
     # Audit log
     write_audit_log(all_transactions)
