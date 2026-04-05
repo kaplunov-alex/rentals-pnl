@@ -56,4 +56,8 @@ export const api = {
   getCategories: () => req<import('../types').CategoriesResponse>('/config/categories'),
   getProperties: () => req<{ properties: string[] }>('/config/properties'),
   getOverview: () => req<import('../types').OverviewData>('/overview'),
+  getSheetTransactions: (month: string, property?: string) =>
+    req<import('../types').SheetTransaction[]>(
+      `/sheets/transactions?month=${month}${property && property !== 'all' ? `&property=${encodeURIComponent(property)}` : ''}`
+    ),
 }

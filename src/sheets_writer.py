@@ -420,6 +420,96 @@ def write_property_transaction_sheets(
     return written
 
 
+def _parse_row_date(date_str: str) -> Optional[str]:
+    """Parse a date string in any common format and return YYYY-MM-DD, or None if unparseable."""
+    from datetime import datetime
+    date_str = date_str.strip()
+    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%m-%d-%Y", "%-m/%-d/%Y"):
+        try:
+            return datetime.strptime(date_str, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return None
+
+
+def read_property_sheet_transactions(
+    config: dict,
+    month: str,
+    property_name: Optional[str] = None,
+    service_account_path: str = "service_account.json",
+) -> List[dict]:
+    """
+    Read transactions from per-property Google Sheets for a given month (YYYY-MM).
+    If property_name is None or 'all', reads from all configured property sheets.
+    Returns a list of dicts: {date, vendor, amount, source, category, comments, property}.
+    """
+    property_sheets_cfg = config.get("property_sheets", {})
+    if not property_sheets_cfg:
+        return []
+
+    client = _get_client(service_account_path)
+
+    if property_name and property_name.lower() != "all":
+        sheet_items = [
+            (k, v) for k, v in property_sheets_cfg.items()
+            if k.lower() == property_name.lower()
+        ]
+    else:
+        sheet_items = list(property_sheets_cfg.items())
+
+    try:
+        year = int(month[:4])
+    except (ValueError, IndexError):
+        return []
+
+    results: List[dict] = []
+
+    for prop_name, sheet_cfg in sheet_items:
+        sheet_id = sheet_cfg.get("spreadsheet_id")
+        if not sheet_id:
+            continue
+        try:
+            spreadsheet = _retry(lambda sid=sheet_id: client.open_by_key(sid))
+            # Try year-named tab first, then fall back to the first worksheet
+            try:
+                ws = spreadsheet.worksheet(str(year))
+            except gspread.exceptions.WorksheetNotFound:
+                worksheets = spreadsheet.worksheets()
+                if not worksheets:
+                    continue
+                ws = worksheets[0]
+
+            all_values = _retry(lambda w=ws: w.get_all_values())
+            for row in all_values[1:]:  # skip header row
+                if not row or not row[0].strip():
+                    continue
+                parsed_date = _parse_row_date(row[0])
+                if not parsed_date:
+                    continue  # skip format/example rows
+                if not parsed_date.startswith(month):
+                    continue
+                amount_str = row[2].strip().replace("$", "").replace(",", "") if len(row) > 2 else ""
+                try:
+                    amount = float(amount_str) if amount_str else 0.0
+                except ValueError:
+                    amount = 0.0
+                results.append({
+                    "date": parsed_date,
+                    "vendor": row[1].strip() if len(row) > 1 else "",
+                    "amount": amount,
+                    "source": row[3].strip() if len(row) > 3 else "",
+                    "category": row[4].strip() if len(row) > 4 else "",
+                    "comments": row[5].strip() if len(row) > 5 else "",
+                    "property": prop_name,
+                })
+        except Exception as e:
+            logger.warning(f"Could not read sheet for {prop_name!r}: {e}")
+            continue
+
+    results.sort(key=lambda r: r["date"])
+    return results
+
+
 # Keep old name as alias so any external callers aren't broken
 def append_transactions(
     transactions: List[Transaction],

@@ -12,7 +12,8 @@ categories:
 - Legal & Accounting
 - Travel/Mileage
 - Supplies
-- Meals
+- Meals/Restaurants
+- Meals/Not-Restaurants
 - Subscriptions
 - Other Expenses
 deployment:
@@ -87,7 +88,7 @@ vendor_mappings:
     category: Property Tax
     property: 11873 E MapleWood
   ARLO TECHNOLOGIES INC:
-    category: Repairs & Maintenance
+    category: Subscriptions
     property: 30 Bishop Oak
   BILL PAY RECOLOGY:
     category: Utilities (Owner Paid)
@@ -120,16 +121,16 @@ vendor_mappings:
     category: Supplies
     property: 30 Bishop Oak
   TST* WILDSEED - PALO ALTO:
-    category: Meals
+    category: Meals/Restaurants
     property: 30 Bishop Oak
   TST*CASCAL:
-    category: Meals
+    category: Meals/Restaurants
     property: 30 Bishop Oak
   TST*HUMMUS MEDITERRANEAN:
-    category: Meals
+    category: Meals/Restaurants
     property: 30 Bishop Oak
   TST*MACARENA:
-    category: Meals
+    category: Meals/Restaurants
     property: 30 Bishop Oak
   UBER   *TRIP:
     category: Travel/Mileage

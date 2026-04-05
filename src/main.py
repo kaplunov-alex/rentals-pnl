@@ -43,7 +43,25 @@ logger = logging.getLogger(__name__)
 
 def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
     with open(config_path, "r") as f:
-        return yaml.safe_load(f)
+        config = yaml.safe_load(f)
+
+    # Overlay categories and vendor_mappings from sheet (sheet is source of truth)
+    spreadsheet_id = config.get("spreadsheet_id")
+    sa_path = config.get("service_account_path", "service_account.json")
+    if spreadsheet_id and os.path.exists(sa_path):
+        try:
+            from src.config_sheet import read_categories, read_vendor_mappings
+            sheet_cats = read_categories(spreadsheet_id, sa_path)
+            if sheet_cats:
+                config.update(sheet_cats)
+            sheet_mappings = read_vendor_mappings(spreadsheet_id, sa_path)
+            if sheet_mappings is not None:
+                config["vendor_mappings"] = sheet_mappings
+            logger.info("Loaded categories and vendor mappings from Google Sheet.")
+        except Exception as e:
+            logger.warning(f"Could not load config from sheet, using config.yaml values: {e}")
+
+    return config
 
 
 def find_csv_files(downloads_dir: str) -> List[Path]:

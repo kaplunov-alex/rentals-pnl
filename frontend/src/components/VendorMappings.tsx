@@ -14,6 +14,8 @@ export default function VendorMappings({ categories, properties, onToast }: Prop
   const [deleting, setDeleting] = useState<Set<string>>(new Set())
   const [adding, setAdding] = useState(false)
   const [search, setSearch] = useState('')
+  const [filterProperty, setFilterProperty] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
   const [form, setForm] = useState<VendorMapping>({ key: '', property: '', category: '' })
 
   const load = async () => {
@@ -63,7 +65,9 @@ export default function VendorMappings({ categories, properties, onToast }: Prop
   }
 
   const filtered = mappings.filter(m =>
-    !search || m.key.toLowerCase().includes(search.toLowerCase())
+    (!search || m.key.toLowerCase().includes(search.toLowerCase())) &&
+    (!filterProperty || m.property === filterProperty) &&
+    (!filterCategory || m.category === filterCategory)
   )
 
   return (
@@ -124,7 +128,7 @@ export default function VendorMappings({ categories, properties, onToast }: Prop
             <h2 className="font-semibold text-gray-800">Existing Rules</h2>
             <p className="text-xs text-gray-400 mt-0.5">{mappings.length} rule{mappings.length !== 1 ? 's' : ''} configured</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
               <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -137,6 +141,22 @@ export default function VendorMappings({ categories, properties, onToast }: Prop
                 className="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 w-40"
               />
             </div>
+            <select
+              value={filterProperty}
+              onChange={e => setFilterProperty(e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="">All Properties</option>
+              {properties.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <select
+              value={filterCategory}
+              onChange={e => setFilterCategory(e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              <option value="">All Categories</option>
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
             <button
               onClick={load}
               className="text-xs text-blue-600 hover:text-blue-800 px-2 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"

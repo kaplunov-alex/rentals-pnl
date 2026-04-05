@@ -85,3 +85,13 @@ class OverviewResponse(BaseModel):
     total_income: float
     total_expenses: float
     net_cash_flow: float
+
+
+class SheetTransaction(BaseModel):
+    date: str
+    vendor: str
+    amount: float
+    source: str
+    category: str
+    comments: str
+    property: str

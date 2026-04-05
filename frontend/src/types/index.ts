@@ -54,3 +54,13 @@ export interface OverviewData {
   total_expenses: number
   net_cash_flow: number
 }
+
+export interface SheetTransaction {
+  date: string
+  vendor: string
+  amount: number
+  source: string
+  category: string
+  comments: string
+  property: string
+}
