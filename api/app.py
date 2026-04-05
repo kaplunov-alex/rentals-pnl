@@ -1,9 +1,18 @@
 """FastAPI application entry point."""
 
+import logging
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+
+# Ensure Python logging goes to stdout so Cloud Run captures it
+logging.basicConfig(
+    stream=sys.stdout,
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
