@@ -371,16 +371,18 @@ def write_property_transaction_sheets(
                     _retry(lambda w=ws: w.append_row(_PROPERTY_SHEET_HEADERS, value_input_option="USER_ENTERED"))
                     logger.info(f"Created tab {tab_name!r} in {prop_name!r} transaction sheet.")
 
-                # Read existing rows to find already-written months (skip header row)
+                # Read existing rows to find already-written months (skip header row).
+                # Use _parse_row_date to handle whatever format Sheets stored the date in.
                 all_values = _retry(lambda w=ws: w.get_all_values())
                 logger.info(f"{prop_name!r} / {tab_name}: {len(all_values)} rows already in sheet")
                 written_months: set = set()
                 for row in all_values[1:]:
                     if row and row[0].strip():
-                        # Date is YYYY-MM-DD; extract YYYY-MM
-                        written_months.add(row[0].strip()[:7])
+                        parsed = _parse_row_date(row[0])
+                        if parsed:
+                            written_months.add(parsed[:7])  # YYYY-MM
 
-                # Build rows to append, skipping any month already present
+                # Build rows to append, skipping any month already fully present
                 rows_to_append = []
                 skipped_months: set = set()
                 for txn in year_txns:
@@ -396,7 +398,6 @@ def write_property_transaction_sheets(
                         txn.category or "",
                         txn.comments or "",
                     ])
-                    written_months.add(txn_month)  # mark month as written for intra-batch consistency
 
                 if skipped_months:
                     logger.info(f"{prop_name!r} / {tab_name}: skipped months already present: {sorted(skipped_months)}")
