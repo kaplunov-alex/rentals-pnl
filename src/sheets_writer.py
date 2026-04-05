@@ -384,6 +384,7 @@ def write_property_transaction_sheets(
                             amt = None
                         if amt is not None:
                             existing.add((row[1].strip().lower(), amt))
+                            logger.info(f"EXISTING {prop_name!r}: vendor={row[1].strip()!r} amount={amt}")
 
                 # Build rows to append, skipping duplicates
                 rows_to_append = []
@@ -391,8 +392,10 @@ def write_property_transaction_sheets(
                 for txn in year_txns:
                     key = (txn.description.strip().lower(), float(txn.amount))
                     if key in existing:
+                        logger.info(f"DEDUP SKIP {prop_name!r}: {txn.description!r} amount={txn.amount} date={txn.date}")
                         skipped += 1
                         continue
+                    logger.info(f"QUEUED {prop_name!r}: {txn.description!r} amount={txn.amount} date={txn.date}")
                     rows_to_append.append([
                         txn.date.strftime("%Y-%m-%d"),
                         txn.description,
