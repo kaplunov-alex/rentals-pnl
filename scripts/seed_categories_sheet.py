@@ -1,6 +1,6 @@
 """
-One-time script: write categories from config.yaml into the
-"Categories" tab of the P&L Google Sheet.
+One-time script: write categories into the "Categories" tab of the P&L Google Sheet.
+Categories are defined here directly (source of truth is the sheet, not config.yaml).
 
 Tab format: Category | Type  (Type = "income" or "expense")
 
@@ -13,6 +13,33 @@ import gspread
 CONFIG_PATH = "config.yaml"
 TAB_NAME = "Categories"
 HEADERS = ["Category", "Type"]
+
+INCOME_CATEGORIES = [
+    "Rental Income",
+    "Late Fees",
+    "Security Deposit",
+    "Other Income",
+]
+
+EXPENSE_CATEGORIES = [
+    "Mortgage/Loan Payment",
+    "Property Tax",
+    "Insurance",
+    "HOA Fees",
+    "Property Management",
+    "Repairs & Maintenance",
+    "Utilities (Owner Paid)",
+    "Landscaping",
+    "Household Goods",
+    "Advertising/Vacancy",
+    "Legal & Accounting",
+    "Travel/Mileage",
+    "Supplies",
+    "Meals/Restaurants",
+    "Meals/Not-Restaurants",
+    "Subscriptions",
+    "Other Expenses",
+]
 
 
 def main():
@@ -34,9 +61,9 @@ def main():
         print(f"Created tab '{TAB_NAME}'.")
 
     rows = [HEADERS]
-    for cat in config.get("income_categories", []):
+    for cat in INCOME_CATEGORIES:
         rows.append([cat, "income"])
-    for cat in config.get("categories", []):
+    for cat in EXPENSE_CATEGORIES:
         rows.append([cat, "expense"])
 
     ws.update(rows, value_input_option="USER_ENTERED")
