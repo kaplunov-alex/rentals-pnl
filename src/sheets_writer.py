@@ -371,24 +371,27 @@ def write_property_transaction_sheets(
                     _retry(lambda w=ws: w.append_row(_PROPERTY_SHEET_HEADERS, value_input_option="USER_ENTERED"))
                     logger.info(f"Created tab {tab_name!r} in {prop_name!r} transaction sheet.")
 
-                # Read existing rows to find already-written months (skip header row).
-                # Use _parse_row_date to handle whatever format Sheets stored the date in.
+                # Read existing rows and build a dedup set of (vendor, amount) pairs.
+                # A transaction is a duplicate only if both vendor AND amount already exist.
                 all_values = _retry(lambda w=ws: w.get_all_values())
                 logger.info(f"{prop_name!r} / {tab_name}: {len(all_values)} rows already in sheet")
-                written_months: set = set()
+                existing: set = set()
                 for row in all_values[1:]:
-                    if row and row[0].strip():
-                        parsed = _parse_row_date(row[0])
-                        if parsed:
-                            written_months.add(parsed[:7])  # YYYY-MM
+                    if len(row) >= 3 and row[1].strip():
+                        try:
+                            amt = float(str(row[2]).strip().replace("$", "").replace(",", ""))
+                        except ValueError:
+                            amt = None
+                        if amt is not None:
+                            existing.add((row[1].strip().lower(), amt))
 
-                # Build rows to append, skipping any month already fully present
+                # Build rows to append, skipping duplicates
                 rows_to_append = []
-                skipped_months: set = set()
+                skipped = 0
                 for txn in year_txns:
-                    txn_month = txn.date.strftime("%Y-%m")
-                    if txn_month in written_months:
-                        skipped_months.add(txn_month)
+                    key = (txn.description.strip().lower(), float(txn.amount))
+                    if key in existing:
+                        skipped += 1
                         continue
                     rows_to_append.append([
                         txn.date.strftime("%Y-%m-%d"),
@@ -398,9 +401,10 @@ def write_property_transaction_sheets(
                         txn.category or "",
                         txn.comments or "",
                     ])
+                    existing.add(key)  # prevent intra-batch duplicates
 
-                if skipped_months:
-                    logger.info(f"{prop_name!r} / {tab_name}: skipped months already present: {sorted(skipped_months)}")
+                if skipped:
+                    logger.info(f"{prop_name!r} / {tab_name}: skipped {skipped} duplicate transaction(s).")
 
                 logger.info(f"{prop_name!r} / {tab_name}: {len(rows_to_append)} new rows to append (of {len(year_txns)} txns)")
                 if rows_to_append:
