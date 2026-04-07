@@ -6,6 +6,7 @@ import SettingsPage from './pages/SettingsPage'
 import TransactionsPage from './pages/TransactionsPage'
 import { api } from './api/client'
 import { useOverview } from './context/OverviewContext'
+import { useTransactions } from './context/TransactionsContext'
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${
@@ -52,6 +53,10 @@ export default function App() {
   const [lastSync, setLastSync] = useState<string | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
   const { refresh: refreshOverview } = useOverview()
+  const { transactions } = useTransactions()
+
+  const uncategorizedCount = transactions.filter(t => t.needs_review).length
+  const hasTransactions = transactions.length > 0
 
   useEffect(() => {
     api.pipelineStatus().then(status => {
@@ -125,14 +130,19 @@ export default function App() {
           </div>
           <button
             onClick={handleSync}
-            disabled={syncing}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors"
+            disabled={syncing || !hasTransactions || uncategorizedCount > 0}
+            title={
+              !hasTransactions ? 'Upload transactions first' :
+              uncategorizedCount > 0 ? `${uncategorizedCount} transaction(s) still need review` :
+              'Sync to Google Sheets'
+            }
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors"
           >
             <svg className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            {syncing ? 'Syncing…' : 'Sync Now'}
+            {syncing ? 'Syncing…' : uncategorizedCount > 0 ? `${uncategorizedCount} need review` : 'Sync Now'}
           </button>
           {syncError && (
             <p className="text-xs text-red-600 mt-1 break-words">{syncError}</p>

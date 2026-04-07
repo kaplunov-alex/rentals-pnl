@@ -4,23 +4,18 @@ setlocal
 set PROJECT=rental-pnl-automation
 set REGION=us-central1
 set SERVICE=rental-pnl
-set IMAGE=%REGION%-docker.pkg.dev/%PROJECT%/%SERVICE%/%SERVICE%:latest
+
+:: Use a timestamp tag to force a new revision on every deploy
+for /f %%I in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMddHHmm"') do set TAG=%%I
+set IMAGE=%REGION%-docker.pkg.dev/%PROJECT%/%SERVICE%/%SERVICE%:%TAG%
 
 echo.
-echo Building image...
-gcloud builds submit --tag "%IMAGE%" --project=%PROJECT%
-if %ERRORLEVEL% neq 0 (
-    echo Build failed. Aborting deploy.
-    exit /b 1
-)
+echo Building image with tag %TAG%...
+call gcloud builds submit --tag "%IMAGE%" --project=%PROJECT%
 
 echo.
 echo Deploying to Cloud Run...
-gcloud run deploy %SERVICE% --image="%IMAGE%" --region=%REGION% --project=%PROJECT%
-if %ERRORLEVEL% neq 0 (
-    echo Deploy failed.
-    exit /b 1
-)
+call gcloud run deploy %SERVICE% --image="%IMAGE%" --region=%REGION% --project=%PROJECT%
 
 echo.
 echo Done. Service URL:

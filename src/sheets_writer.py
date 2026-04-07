@@ -383,14 +383,16 @@ def write_property_transaction_sheets(
                         except ValueError:
                             amt = None
                         if amt is not None:
-                            existing.add((row[1].strip().lower(), amt))
-                            logger.info(f"EXISTING {prop_name!r}: vendor={row[1].strip()!r} amount={amt}")
+                            date_str = row[0].strip() if row[0].strip() else ""
+                            existing.add((date_str, row[1].strip().lower(), amt))
 
-                # Build rows to append, skipping duplicates
+                # Build rows to append, skipping duplicates.
+                # Key includes date so same vendor/amount on a different date is NOT a duplicate
+                # (e.g. recurring monthly charges, or Feb transactions from a March CSV).
                 rows_to_append = []
                 skipped = 0
                 for txn in year_txns:
-                    key = (txn.description.strip().lower(), float(txn.amount))
+                    key = (txn.date.strftime("%Y-%m-%d"), txn.description.strip().lower(), float(txn.amount))
                     if key in existing:
                         logger.info(f"DEDUP SKIP {prop_name!r}: {txn.description!r} amount={txn.amount} date={txn.date}")
                         skipped += 1
