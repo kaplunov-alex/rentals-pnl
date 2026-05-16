@@ -21,21 +21,34 @@ logger = logging.getLogger(__name__)
 def parse_wells_fargo(filepath: str | Path) -> List[Transaction]:
     """Parse a Wells Fargo checking CSV into a list of Transactions.
 
-    WF CSVs have no header. Columns: Date, Amount, *, *, Description
+    Supports two formats:
+    - New (with header): DATE, DESCRIPTION, AMOUNT, CHECK #, STATUS
+    - Old (no header):   Date, Amount, *, *, Description
     """
     transactions = []
     try:
-        df = pd.read_csv(
-            filepath,
-            header=None,
-            names=["date", "amount", "col2", "col3", "description"],
-            dtype=str,
-        )
+        with open(filepath, "r") as f:
+            first_line = f.readline()
+        has_header = "DATE" in first_line.upper() and "DESCRIPTION" in first_line.upper()
+
+        if has_header:
+            df = pd.read_csv(filepath, dtype=str)
+            df.columns = [c.strip().strip('"').lower().replace(" ", "_").replace("#", "num") for c in df.columns]
+            date_col, desc_col, amount_col = "date", "description", "amount"
+        else:
+            df = pd.read_csv(
+                filepath,
+                header=None,
+                names=["date", "amount", "col2", "col3", "description"],
+                dtype=str,
+            )
+            date_col, desc_col, amount_col = "date", "description", "amount"
+
         for _, row in df.iterrows():
             try:
-                txn_date = _parse_date(str(row["date"]).strip())
-                amount = float(str(row["amount"]).replace(",", "").strip())
-                description = str(row["description"]).strip()
+                txn_date = _parse_date(str(row[date_col]).strip())
+                amount = float(str(row[amount_col]).replace(",", "").strip())
+                description = str(row[desc_col]).strip()
                 transactions.append(
                     Transaction(
                         date=txn_date,

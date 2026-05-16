@@ -383,7 +383,7 @@ def write_property_transaction_sheets(
                         except ValueError:
                             amt = None
                         if amt is not None:
-                            date_str = row[0].strip() if row[0].strip() else ""
+                            date_str = _parse_row_date(row[0].strip()) or row[0].strip()
                             existing.add((date_str, row[1].strip().lower(), amt))
 
                 # Build rows to append, skipping duplicates.
