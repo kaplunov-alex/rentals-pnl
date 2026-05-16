@@ -15,6 +15,10 @@ const currentMonthValue = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+const rowKey = (t: SheetTransaction) => `${t.date}|${t.vendor}|${t.amount}|${t.property}`
+
+type EditDraft = { category: string; property: string; comments: string }
+
 function SummaryCard({
   title, value, subtitle, icon, valueColor = 'text-gray-900', loading = false,
 }: {
@@ -44,13 +48,19 @@ function SummaryCard({
 }
 
 export default function DashboardPage() {
-  const { overview, loading: overviewLoading, error: overviewError } = useOverview()
+  const { overview, loading: overviewLoading, error: overviewError, refresh: refreshOverview } = useOverview()
   const [sheetTxns, setSheetTxns] = useState<SheetTransaction[]>([])
   const [txnsLoading, setTxnsLoading] = useState(false)
   const [month, setMonth] = useState(currentMonthValue())
   const [selectedProperty, setSelectedProperty] = useState('all')
   const [properties, setProperties] = useState<string[]>([])
+  const [categories, setCategories] = useState<string[]>([])
   const [toasts, setToasts] = useState<ToastMessage[]>([])
+
+  // Edit state
+  const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState<EditDraft>({ category: '', property: '', comments: '' })
+  const [saving, setSaving] = useState(false)
 
   const addToast = useCallback((text: string, type: ToastMessage['type'] = 'info') => {
     setToasts(prev => [...prev, { id: ++toastCounter, text, type }])
@@ -60,18 +70,60 @@ export default function DashboardPage() {
     setToasts(prev => prev.filter(t => t.id !== id))
   }, [])
 
-  useEffect(() => {
-    api.getProperties().then(r => setProperties(r.properties)).catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    if (!month) return
+  const loadTxns = useCallback((m: string, prop: string) => {
+    if (!m) return
     setTxnsLoading(true)
-    api.getSheetTransactions(month, selectedProperty)
+    api.getSheetTransactions(m, prop)
       .then(setSheetTxns)
       .catch(e => addToast(`Failed to load transactions: ${(e as Error).message}`, 'error'))
       .finally(() => setTxnsLoading(false))
-  }, [month, selectedProperty, addToast])
+  }, [addToast])
+
+  useEffect(() => {
+    Promise.all([api.getProperties(), api.getCategories()])
+      .then(([props, cats]) => {
+        setProperties(props.properties)
+        setCategories([...cats.income_categories, ...cats.categories])
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    loadTxns(month, selectedProperty)
+  }, [month, selectedProperty, loadTxns])
+
+  const startEdit = (t: SheetTransaction) => {
+    setEditingKey(rowKey(t))
+    setEditDraft({ category: t.category, property: t.property, comments: t.comments })
+  }
+
+  const cancelEdit = () => {
+    setEditingKey(null)
+  }
+
+  const handleSave = async (original: SheetTransaction) => {
+    setSaving(true)
+    try {
+      await api.updateSheetTransaction({
+        date: original.date,
+        vendor: original.vendor,
+        amount: original.amount,
+        original_property: original.property,
+        category: editDraft.category || undefined,
+        new_property: editDraft.property !== original.property ? editDraft.property : undefined,
+        comments: editDraft.comments,
+      })
+      addToast('Transaction updated', 'success')
+      setEditingKey(null)
+      // Refresh both the transaction list and overview totals
+      loadTxns(month, selectedProperty)
+      refreshOverview()
+    } catch (e) {
+      addToast(`Save failed: ${(e as Error).message}`, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const monthLabel = month
     ? new Date(month + '-02').toLocaleString('en-US', { month: 'long', year: 'numeric' })
@@ -104,14 +156,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Overview error banner */}
       {overviewError && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
           <span className="font-medium">Could not load overview from Google Sheets:</span> {overviewError}
         </div>
       )}
 
-      {/* Summary cards — from Google Sheets */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <SummaryCard
           title="Total Income"
@@ -149,7 +199,6 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Transactions from property sheets */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <div>
@@ -178,30 +227,114 @@ export default function DashboardPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Source</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Comments</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Amount</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wide">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {sheetTxns.map((t, i) => (
-                  <tr key={i} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                      {new Date(t.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">{t.vendor}</td>
-                    <td className="px-4 py-3">
-                      {t.category && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">{t.category}</span>
+                {sheetTxns.map((t) => {
+                  const key = rowKey(t)
+                  const isEditing = editingKey === key
+                  const isSaving = isEditing && saving
+
+                  return (
+                    <tr key={key} className={`transition-colors ${isEditing ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                        {new Date(t.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">{t.vendor}</td>
+
+                      {/* Category */}
+                      <td className="px-4 py-3">
+                        {isEditing ? (
+                          <select
+                            value={editDraft.category}
+                            onChange={e => setEditDraft(d => ({ ...d, category: e.target.value }))}
+                            disabled={isSaving}
+                            className="border border-blue-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 w-full"
+                          >
+                            <option value="">Select…</option>
+                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        ) : (
+                          t.category && (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">{t.category}</span>
+                          )
+                        )}
+                      </td>
+
+                      {/* Property (only in "all" view) */}
+                      {selectedProperty === 'all' && (
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">
+                          {isEditing ? (
+                            <select
+                              value={editDraft.property}
+                              onChange={e => setEditDraft(d => ({ ...d, property: e.target.value }))}
+                              disabled={isSaving}
+                              className="border border-blue-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 w-full"
+                            >
+                              <option value="">Select…</option>
+                              {properties.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                          ) : (
+                            t.property
+                          )}
+                        </td>
                       )}
-                    </td>
-                    {selectedProperty === 'all' && (
-                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap text-xs">{t.property}</td>
-                    )}
-                    <td className="px-4 py-3 text-gray-400 text-xs">{t.source}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs max-w-[160px] truncate">{t.comments}</td>
-                    <td className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${t.amount >= 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                      {t.amount >= 0 ? '+' : ''}{fmt(t.amount)}
-                    </td>
-                  </tr>
-                ))}
+
+                      <td className="px-4 py-3 text-gray-400 text-xs">{t.source}</td>
+
+                      {/* Comments */}
+                      <td className="px-4 py-3 text-xs max-w-[160px]">
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editDraft.comments}
+                            onChange={e => setEditDraft(d => ({ ...d, comments: e.target.value }))}
+                            disabled={isSaving}
+                            placeholder="Add note…"
+                            className="border border-blue-300 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50 w-full"
+                          />
+                        ) : (
+                          <span className="text-gray-500 truncate block">{t.comments}</span>
+                        )}
+                      </td>
+
+                      <td className={`px-4 py-3 text-right font-semibold whitespace-nowrap ${t.amount >= 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                        {t.amount >= 0 ? '+' : ''}{fmt(t.amount)}
+                      </td>
+
+                      {/* Action buttons */}
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        {isEditing ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={cancelEdit}
+                              disabled={isSaving}
+                              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => handleSave(t)}
+                              disabled={isSaving || !editDraft.category || !editDraft.property}
+                              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white transition-colors"
+                            >
+                              {isSaving ? 'Saving…' : 'Save'}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => startEdit(t)}
+                            disabled={editingKey !== null}
+                            className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition-colors"
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

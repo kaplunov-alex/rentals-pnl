@@ -64,3 +64,13 @@ export interface SheetTransaction {
   comments: string
   property: string
 }
+
+export interface SheetTransactionUpdateRequest {
+  date: string
+  vendor: string
+  amount: number
+  original_property: string
+  category?: string
+  new_property?: string
+  comments?: string
+}

@@ -520,6 +520,174 @@ def read_property_sheet_transactions(
     return results
 
 
+def recalculate_pnl_for_property_month(
+    config: dict,
+    property_name: str,
+    month: str,  # YYYY-MM
+    service_account_path: str = "service_account.json",
+) -> None:
+    """
+    Re-read all transactions for one property+month from the property sheet and
+    rewrite the P&L summary cells for that month, including writing 0 for any
+    configured category that now has no transactions.
+    """
+    spreadsheet_id = config.get("spreadsheet_id")
+    if not spreadsheet_id:
+        return
+
+    rows = read_property_sheet_transactions(config, month, property_name, service_account_path)
+
+    # Compute absolute totals per category
+    totals: Dict[str, float] = {}
+    for r in rows:
+        cat = (r.get("category") or "").strip() or "Other Expenses"
+        totals[cat] = round(totals.get(cat, 0) + abs(float(r.get("amount", 0))), 2)
+
+    client = _get_client(service_account_path)
+    spreadsheet = _retry(lambda: client.open_by_key(spreadsheet_id))
+    try:
+        ws = spreadsheet.worksheet(property_name)
+    except gspread.exceptions.WorksheetNotFound:
+        logger.warning(f"P&L worksheet {property_name!r} not found — skipping recalculation.")
+        return
+
+    all_values = _retry(lambda: ws.get_all_values())
+    header_row_idx = _find_header_row(all_values)
+    if header_row_idx is None:
+        return
+    header_row = all_values[header_row_idx]
+    month_num = int(month[5:7])
+    col_idx = _find_col(header_row, month_num)
+    if col_idx is None:
+        return
+
+    all_categories = config.get("income_categories", []) + config.get("categories", [])
+    for cat in all_categories:
+        row_idx = _find_row(all_values, cat)
+        if row_idx is None:
+            continue
+        value = totals.get(cat, 0)
+        _retry(lambda r=row_idx + 1, c=col_idx + 1, v=value: ws.update_cell(r, c, v))
+        logger.info(f"  P&L recalc: {property_name} / {cat} / {month} = {value}")
+
+
+def update_property_sheet_transaction(
+    config: dict,
+    date_str: str,          # YYYY-MM-DD
+    vendor: str,
+    amount: float,
+    original_property: str,
+    new_category: Optional[str] = None,
+    new_property: Optional[str] = None,
+    new_comments: Optional[str] = None,
+    service_account_path: str = "service_account.json",
+) -> None:
+    """
+    Update a single transaction row in the per-property Google Sheet.
+
+    - If new_property differs from original_property: delete the row from the
+      source sheet and append it to the target property sheet.
+    - Otherwise update category/comments in-place.
+    - Recalculates P&L summary cells for all affected property+month combinations.
+
+    Row is identified by the (date, vendor, amount) triple, which must be unique.
+    """
+    property_sheets_cfg = config.get("property_sheets", {})
+    if not property_sheets_cfg:
+        raise ValueError("No property_sheets configured in config.")
+
+    client = _get_client(service_account_path)
+    year = int(date_str[:4])
+    month = date_str[:7]  # YYYY-MM
+
+    # Locate source property sheet
+    src_cfg = next(
+        (v for k, v in property_sheets_cfg.items() if k.lower() == original_property.lower()),
+        None,
+    )
+    if not src_cfg:
+        raise ValueError(f"No property_sheets entry for {original_property!r}")
+
+    src_spreadsheet = _retry(lambda: client.open_by_key(src_cfg["spreadsheet_id"]))
+    src_ws = _retry(lambda: src_spreadsheet.worksheet(str(year)))
+
+    # Find the target row by (date, vendor, amount)
+    all_values = _retry(lambda: src_ws.get_all_values())
+    target_row_num: Optional[int] = None
+    row_data: Optional[List] = None
+    for i, row in enumerate(all_values[1:], start=2):  # row 1 is header; gspread is 1-indexed
+        if len(row) < 3:
+            continue
+        row_date = _parse_row_date(row[0]) or row[0].strip()
+        try:
+            row_amt = float(str(row[2]).replace("$", "").replace(",", "").strip())
+        except ValueError:
+            continue
+        if (
+            row_date == date_str
+            and row[1].strip().lower() == vendor.strip().lower()
+            and abs(row_amt - amount) < 0.01
+        ):
+            target_row_num = i
+            row_data = row
+            break
+
+    if target_row_num is None:
+        raise ValueError(f"Transaction not found in {original_property!r}: {date_str} / {vendor} / {amount}")
+
+    old_category = row_data[4].strip() if len(row_data) > 4 else ""
+    old_comments = row_data[5].strip() if len(row_data) > 5 else ""
+    source_bank  = row_data[3].strip() if len(row_data) > 3 else ""
+
+    property_changed = bool(new_property and new_property.lower() != original_property.lower())
+
+    if property_changed:
+        # Delete from source, append to target
+        _retry(lambda: src_ws.delete_rows(target_row_num))
+
+        tgt_cfg = next(
+            (v for k, v in property_sheets_cfg.items() if k.lower() == new_property.lower()),
+            None,
+        )
+        if not tgt_cfg:
+            raise ValueError(f"No property_sheets entry for target {new_property!r}")
+
+        tgt_spreadsheet = _retry(lambda: client.open_by_key(tgt_cfg["spreadsheet_id"]))
+        try:
+            tgt_ws = tgt_spreadsheet.worksheet(str(year))
+        except gspread.exceptions.WorksheetNotFound:
+            tgt_ws = _retry(lambda: tgt_spreadsheet.add_worksheet(title=str(year), rows=1000, cols=10))
+            _retry(lambda: tgt_ws.append_row(_PROPERTY_SHEET_HEADERS, value_input_option="USER_ENTERED"))
+
+        new_row = [
+            date_str,
+            vendor,
+            amount,
+            source_bank,
+            new_category if new_category is not None else old_category,
+            new_comments if new_comments is not None else old_comments,
+        ]
+        _retry(lambda: tgt_ws.append_row(new_row, value_input_option="USER_ENTERED"))
+
+        # Recalculate P&L for both properties
+        recalculate_pnl_for_property_month(config, original_property, month, service_account_path)
+        recalculate_pnl_for_property_month(config, new_property, month, service_account_path)
+        logger.info(f"Moved transaction {date_str}/{vendor}/{amount} from {original_property!r} to {new_property!r}")
+
+    else:
+        # Update in-place
+        category_to_write = new_category if new_category is not None else old_category
+        comments_to_write = new_comments if new_comments is not None else old_comments
+        _retry(lambda: src_ws.update_cell(target_row_num, 5, category_to_write))
+        _retry(lambda: src_ws.update_cell(target_row_num, 6, comments_to_write))
+
+        # Recalculate P&L only if category changed
+        if new_category is not None and new_category != old_category:
+            recalculate_pnl_for_property_month(config, original_property, month, service_account_path)
+
+        logger.info(f"Updated transaction {date_str}/{vendor}/{amount} in {original_property!r}")
+
+
 # Keep old name as alias so any external callers aren't broken
 def append_transactions(
     transactions: List[Transaction],

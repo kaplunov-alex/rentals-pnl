@@ -281,7 +281,7 @@ class TestConfigRoutes:
 
     def test_add_vendor_mapping(self, client):
         with patch("api.routes.config.get_config", return_value=SAMPLE_CONFIG):
-            with patch("api.routes.config.save_vendor_mapping"):
+            with patch("api.routes.config.write_vendor_mapping"):
                 with patch("api.routes.config.reload_config", return_value=SAMPLE_CONFIG):
                     r = client.post("/api/config/vendor-mappings", json={
                         "key": "STATE FARM",
@@ -297,7 +297,7 @@ class TestConfigRoutes:
             "ZELLE TO/FROM TENANT": {"property": "154 Santa Clara", "category": "Rental Income"},
         }}
         with patch("api.routes.config.get_config", return_value=config_with_slash):
-            with patch("api.routes.config.save_vendor_mapping"):
+            with patch("api.routes.config.sheet_delete_vendor_mapping"):
                 with patch("api.routes.config.reload_config", return_value=config_with_slash):
                     r = client.delete("/api/config/vendor-mappings/ZELLE TO/FROM TENANT")
         # The route must be reachable (not a 404/405 from routing failure)
@@ -351,3 +351,62 @@ class TestOverviewRoute:
         assert data["total_income"] == 5000.0
         assert data["total_expenses"] == 3000.0
         assert data["net_cash_flow"] == 2000.0
+
+
+class TestUpdateSheetTransaction:
+    BASE_PAYLOAD = {
+        "date": "2026-04-08",
+        "vendor": "WF HOME MTG AUTO PAY",
+        "amount": -6607.10,
+        "original_property": "154 Santa Clara",
+    }
+
+    def test_update_category_returns_204(self, client):
+        payload = {**self.BASE_PAYLOAD, "category": "Mortgage"}
+        with patch("api.routes.config.get_config", return_value=SAMPLE_CONFIG):
+            with patch("api.routes.config.update_property_sheet_transaction") as mock_update:
+                r = client.patch("/api/sheets/transactions", json=payload)
+        assert r.status_code == 204
+        mock_update.assert_called_once()
+        call_kwargs = mock_update.call_args[1]
+        assert call_kwargs["new_category"] == "Mortgage"
+        assert call_kwargs["new_property"] is None
+
+    def test_update_property_passes_new_property(self, client):
+        payload = {**self.BASE_PAYLOAD, "new_property": "30 Bishop Oak", "category": "Mortgage"}
+        with patch("api.routes.config.get_config", return_value=SAMPLE_CONFIG):
+            with patch("api.routes.config.update_property_sheet_transaction") as mock_update:
+                r = client.patch("/api/sheets/transactions", json=payload)
+        assert r.status_code == 204
+        call_kwargs = mock_update.call_args[1]
+        assert call_kwargs["new_property"] == "30 Bishop Oak"
+
+    def test_update_comments_only(self, client):
+        payload = {**self.BASE_PAYLOAD, "comments": "April mortgage"}
+        with patch("api.routes.config.get_config", return_value=SAMPLE_CONFIG):
+            with patch("api.routes.config.update_property_sheet_transaction") as mock_update:
+                r = client.patch("/api/sheets/transactions", json=payload)
+        assert r.status_code == 204
+        call_kwargs = mock_update.call_args[1]
+        assert call_kwargs["new_comments"] == "April mortgage"
+        assert call_kwargs["new_category"] is None
+
+    def test_row_not_found_returns_404(self, client):
+        payload = {**self.BASE_PAYLOAD, "category": "Mortgage"}
+        with patch("api.routes.config.get_config", return_value=SAMPLE_CONFIG):
+            with patch(
+                "api.routes.config.update_property_sheet_transaction",
+                side_effect=ValueError("Transaction not found"),
+            ):
+                r = client.patch("/api/sheets/transactions", json=payload)
+        assert r.status_code == 404
+
+    def test_sheet_error_returns_502(self, client):
+        payload = {**self.BASE_PAYLOAD, "category": "Mortgage"}
+        with patch("api.routes.config.get_config", return_value=SAMPLE_CONFIG):
+            with patch(
+                "api.routes.config.update_property_sheet_transaction",
+                side_effect=RuntimeError("Sheets API error"),
+            ):
+                r = client.patch("/api/sheets/transactions", json=payload)
+        assert r.status_code == 502

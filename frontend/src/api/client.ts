@@ -60,4 +60,10 @@ export const api = {
     req<import('../types').SheetTransaction[]>(
       `/sheets/transactions?month=${month}${property && property !== 'all' ? `&property=${encodeURIComponent(property)}` : ''}`
     ),
+  updateSheetTransaction: (data: import('../types').SheetTransactionUpdateRequest) =>
+    req<void>('/sheets/transactions', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }),
 }

@@ -2,13 +2,13 @@
 
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.sheets_writer import _parse_row_date, read_property_sheet_transactions
+from src.sheets_writer import _parse_row_date, read_property_sheet_transactions, update_property_sheet_transaction
 
 SAMPLE_CONFIG = {
     "property_sheets": {
@@ -187,3 +187,135 @@ class TestReadPropertySheetTransactions:
     def test_invalid_month_returns_empty(self):
         result = read_property_sheet_transactions(SAMPLE_CONFIG, "not-a-month")
         assert result == []
+
+
+# ─── update_property_sheet_transaction ───────────────────────────────────────
+
+UPDATE_CONFIG = {
+    "spreadsheet_id": "fake-pnl-id",
+    "properties": ["30 Bishop Oak", "154 Santa Clara"],
+    "income_categories": ["Rental Income"],
+    "categories": ["Mortgage", "Maintenance", "Insurance"],
+    "property_sheets": {
+        "30 Bishop Oak": {"spreadsheet_id": "fake-id-bishop"},
+        "154 Santa Clara": {"spreadsheet_id": "fake-id-santa"},
+    },
+}
+
+# Sheet rows: [Date, Vendor, Amount, Bank/Card, Category, Comments]
+_HEADER = ["Date", "Vendor", "Amount", "Bank/Card", "Category", "Comments"]
+_EXISTING_ROWS = [
+    _HEADER,
+    ["2026-04-08", "WF HOME MTG", "-6607.10", "Wells Fargo", "Mortgage", ""],
+    ["2026-04-14", "ALTITUDE RMS", "-59.00", "Wells Fargo", "Property Management", ""],
+]
+
+
+def _make_update_client(rows=None):
+    """Mock gspread client for a single property sheet."""
+    ws = MagicMock()
+    ws.get_all_values.return_value = rows or _EXISTING_ROWS
+    spreadsheet = MagicMock()
+    spreadsheet.worksheet.return_value = ws
+    client = MagicMock()
+    client.open_by_key.return_value = spreadsheet
+    return client, ws
+
+
+class TestUpdatePropertySheetTransaction:
+    def test_updates_category_in_place(self):
+        mock_client, ws = _make_update_client()
+        with patch("src.sheets_writer._get_client", return_value=mock_client):
+            with patch("src.sheets_writer.recalculate_pnl_for_property_month") as mock_recalc:
+                update_property_sheet_transaction(
+                    config=UPDATE_CONFIG,
+                    date_str="2026-04-08",
+                    vendor="WF HOME MTG",
+                    amount=-6607.10,
+                    original_property="30 Bishop Oak",
+                    new_category="Insurance",
+                )
+        # Column 5 (E) updated with new category
+        ws.update_cell.assert_any_call(2, 5, "Insurance")
+        # P&L recalculated because category changed
+        mock_recalc.assert_called_once_with(UPDATE_CONFIG, "30 Bishop Oak", "2026-04", "service_account.json")
+
+    def test_updates_comments_in_place_no_pnl_recalc(self):
+        mock_client, ws = _make_update_client()
+        with patch("src.sheets_writer._get_client", return_value=mock_client):
+            with patch("src.sheets_writer.recalculate_pnl_for_property_month") as mock_recalc:
+                update_property_sheet_transaction(
+                    config=UPDATE_CONFIG,
+                    date_str="2026-04-08",
+                    vendor="WF HOME MTG",
+                    amount=-6607.10,
+                    original_property="30 Bishop Oak",
+                    new_comments="April mortgage payment",
+                )
+        ws.update_cell.assert_any_call(2, 6, "April mortgage payment")
+        # Category unchanged — no P&L recalc needed
+        mock_recalc.assert_not_called()
+
+    def test_raises_when_row_not_found(self):
+        mock_client, _ = _make_update_client()
+        with patch("src.sheets_writer._get_client", return_value=mock_client):
+            with pytest.raises(ValueError, match="not found"):
+                update_property_sheet_transaction(
+                    config=UPDATE_CONFIG,
+                    date_str="2026-04-01",
+                    vendor="NONEXISTENT VENDOR",
+                    amount=-999.00,
+                    original_property="30 Bishop Oak",
+                )
+
+    def test_moves_row_to_new_property(self):
+        src_client, src_ws = _make_update_client()
+        tgt_ws = MagicMock()
+        tgt_ws.get_all_values.return_value = [_HEADER]
+        tgt_spreadsheet = MagicMock()
+        tgt_spreadsheet.worksheet.return_value = tgt_ws
+
+        def open_by_key(sid):
+            if sid == "fake-id-bishop":
+                return src_client.open_by_key.return_value
+            return tgt_spreadsheet
+
+        src_client.open_by_key.side_effect = open_by_key
+
+        with patch("src.sheets_writer._get_client", return_value=src_client):
+            with patch("src.sheets_writer.recalculate_pnl_for_property_month") as mock_recalc:
+                update_property_sheet_transaction(
+                    config=UPDATE_CONFIG,
+                    date_str="2026-04-08",
+                    vendor="WF HOME MTG",
+                    amount=-6607.10,
+                    original_property="30 Bishop Oak",
+                    new_property="154 Santa Clara",
+                    new_category="Mortgage",
+                )
+
+        # Row deleted from source
+        src_ws.delete_rows.assert_called_once_with(2)
+        # Row appended to target
+        tgt_ws.append_row.assert_called_once()
+        appended = tgt_ws.append_row.call_args[0][0]
+        assert appended[0] == "2026-04-08"
+        assert appended[1] == "WF HOME MTG"
+        assert appended[4] == "Mortgage"
+
+        # P&L recalculated for both properties
+        recalc_calls = {c[0][1] for c in mock_recalc.call_args_list}
+        assert "30 Bishop Oak" in recalc_calls
+        assert "154 Santa Clara" in recalc_calls
+
+    def test_raises_for_unknown_property(self):
+        mock_client, _ = _make_update_client()
+        with patch("src.sheets_writer._get_client", return_value=mock_client):
+            with pytest.raises(ValueError, match="No property_sheets entry"):
+                update_property_sheet_transaction(
+                    config=UPDATE_CONFIG,
+                    date_str="2026-04-08",
+                    vendor="WF HOME MTG",
+                    amount=-6607.10,
+                    original_property="Unknown Property",
+                )

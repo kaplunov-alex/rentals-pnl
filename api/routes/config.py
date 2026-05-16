@@ -12,11 +12,12 @@ from api.schemas import (
     OverviewResponse,
     PropertiesResponse,
     SheetTransaction,
+    SheetTransactionUpdateRequest,
     VendorMappingCreate,
     VendorMappingOut,
 )
 from src.config_sheet import write_vendor_mapping, delete_vendor_mapping as sheet_delete_vendor_mapping
-from src.sheets_writer import get_overview_cells, read_property_sheet_transactions
+from src.sheets_writer import get_overview_cells, read_property_sheet_transactions, update_property_sheet_transaction
 
 router = APIRouter()
 
@@ -95,6 +96,33 @@ def get_sheet_transactions(
         return [SheetTransaction(**r) for r in rows]
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Could not read property sheets: {e}")
+
+
+@router.patch("/sheets/transactions", status_code=204)
+def update_sheet_transaction(body: SheetTransactionUpdateRequest):
+    """
+    Update category, property, and/or comments for a transaction that is already
+    in a per-property Google Sheet.  If new_property differs from original_property
+    the row is moved between sheets.  P&L summary cells are recalculated automatically.
+    """
+    config = get_config()
+    svc = _service_account_path(config)
+    try:
+        update_property_sheet_transaction(
+            config=config,
+            date_str=body.date,
+            vendor=body.vendor,
+            amount=body.amount,
+            original_property=body.original_property,
+            new_category=body.category,
+            new_property=body.new_property,
+            new_comments=body.comments,
+            service_account_path=svc,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Sheet update failed: {e}")
 
 
 @router.get("/overview", response_model=OverviewResponse)

@@ -95,3 +95,13 @@ class SheetTransaction(BaseModel):
     category: str
     comments: str
     property: str
+
+
+class SheetTransactionUpdateRequest(BaseModel):
+    date: str                          # YYYY-MM-DD — used to locate the row
+    vendor: str
+    amount: float
+    original_property: str             # which property sheet to look in
+    category: Optional[str] = None     # new value; omit to leave unchanged
+    new_property: Optional[str] = None # if set and different, row moves sheets
+    comments: Optional[str] = None     # new value; omit to leave unchanged
